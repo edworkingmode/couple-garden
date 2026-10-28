@@ -237,3 +237,4 @@ create policy "cg claims insert" on cg_reward_claims for insert to authenticated
 create policy "cg claims update" on cg_reward_claims for update to authenticated
   using (couple_id = cg_my_couple() and owner <> auth.uid())
   with check (couple_id = cg_my_couple() and owner <> auth.uid());
+alter table cg_profiles add column if not exists day_picks jsonb;
