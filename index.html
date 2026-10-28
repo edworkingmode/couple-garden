@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Couple Garden 情侶花園</title>
-<meta name="app-version" content="18">
+<meta name="app-version" content="21">
 <meta name="theme-color" content="#010101">
 <meta name="color-scheme" content="dark">
 <meta name="darkreader-lock">
@@ -287,6 +287,34 @@ input::placeholder { color: var(--ink-faint); }
 .pf { touch-action: pan-y; }
 .pf.picked { transform: scale(1.25); }
 #orb-layer .orb-front { z-index: 100000; }
+/* 花的卡片 */
+.fcard { position: relative; margin: 4px 0 2px; padding: 26px 22px 22px; border-radius: 20px; text-align: center; background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)); border: 1px solid rgba(255,255,255,.12); animation: cardin .6s cubic-bezier(.2,.9,.3,1) both; }
+.fcard.black { background: linear-gradient(180deg, rgba(170,140,255,.1), rgba(255,255,255,.02)); }
+.fc-bloom { width: 260px; height: 260px; margin: -78px auto -84px; background-image: url(flowers.png); background-size: 300% 300%; filter: drop-shadow(0 6px 18px rgba(255,90,110,.35)); animation: bloomin .9s .15s cubic-bezier(.2,1.4,.4,1) both; }
+.fc-bloom.blue { background-image: url(flowers-blue.png); filter: drop-shadow(0 6px 18px rgba(90,140,240,.35)); }
+.fc-bloom.black { background-image: url(flowers-black.png); filter: drop-shadow(0 6px 18px rgba(170,140,255,.35)); }
+.fc-no { font-family: 'Instrument Serif', var(--font-display); font-style: italic; font-size: 34px; line-height: 1.1; }
+.fc-date { margin-top: 4px; font-size: 12px; letter-spacing: .2em; color: var(--ink-faint); }
+.fc-how { margin-top: 2px; font-size: 13px; letter-spacing: .08em; color: var(--ink-soft); }
+.fc-note { margin: 18px 0 0; padding: 16px 6px 0; border-top: 1px solid rgba(255,255,255,.1); font-size: 18px; line-height: 1.6; }
+.fc-note::before { content: "“"; display: block; font-family: 'Instrument Serif', serif; font-size: 40px; line-height: .6; color: rgba(255,255,255,.3); }
+.fc-empty { margin-top: 16px; font-size: 13px; color: var(--ink-faint); }
+.fc-reply { margin-top: 14px; padding: 12px; border-radius: 14px; background: rgba(255,255,255,.05); text-align: left; }
+.fc-reply small { font-size: 12px; color: var(--ink-faint); letter-spacing: .1em; }
+.fc-reply p { margin-top: 2px; font-size: 15px; line-height: 1.5; }
+@keyframes cardin { from { opacity: 0; transform: translateY(18px) rotateX(18deg) scale(.96); } to { opacity: 1; transform: none; } }
+@keyframes bloomin { from { opacity: 0; transform: scale(.3) rotate(-30deg); } to { opacity: 1; transform: none; } }
+/* 新花：從瓶口落下，再在苔蘚上長開 */
+.pf.new { animation: dropbloom 1.6s cubic-bezier(.3,.7,.3,1) both; }
+@keyframes dropbloom { 0% { opacity: 0; transform: translateY(var(--drop, -120px)) scale(.45) rotate(-25deg); } 15% { opacity: 1; } 55% { transform: translateY(0) scale(.5) rotate(8deg); } 70% { transform: translateY(-6px) scale(.55); } 100% { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .fcard, .fc-bloom, .pf.new { animation: none; } }
+/* 瓶子長大 */
+.orb-fly { position: absolute; width: 5px; height: 5px; margin: -2.5px; border-radius: 50%; background: #fff6c8; box-shadow: 0 0 8px 3px rgba(255, 236, 150, .55); animation: orbfly 7s ease-in-out infinite; pointer-events: none; z-index: 1; }
+@keyframes orbfly { 0%, 100% { transform: translate(0, 0); opacity: .2; } 25% { transform: translate(14px, -10px); opacity: 1; } 50% { transform: translate(-6px, -22px); opacity: .5; } 75% { transform: translate(-16px, -6px); opacity: .9; } }
+.orb-aura { position: absolute; border-radius: 50%; background: radial-gradient(ellipse at 50% 70%, rgba(255, 214, 140, .16), rgba(255, 180, 120, .05) 45%, transparent 70%); pointer-events: none; z-index: 0; animation: aura 6s ease-in-out infinite; }
+@keyframes aura { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
+.pf.bigbloom .head { filter: drop-shadow(0 0 14px rgba(255, 120, 140, .45)); }
+@media (prefers-reduced-motion: reduce) { .orb-fly, .orb-aura { animation: none; } }
 </style>
 </head>
 <body>
@@ -308,7 +336,7 @@ input::placeholder { color: var(--ink-faint); }
 <div id="sheet-root"></div>
 <div id="toast-root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=18"></script>
-<script src="app.js?v=18"></script>
+<script src="config.js?v=21"></script>
+<script src="app.js?v=21"></script>
 </body>
 </html>
