@@ -662,7 +662,7 @@
       kids.push(el("div", { class: "libstats" }, [
         el("div", {}, [el("b", { text: String(all.length) }), el("span", { text: "朵" })]),
         el("div", {}, [el("b", { text: shortDate(all[0].day) }), el("span", { text: "第一朵" })]),
-        el("div", {}, [el("b", { text: +top.slice(5) + "月" }), el("span", { text: "最多花的月份" })])
+        el("div", {}, [el("b", {}, [String(+top.slice(5)), el("small", { text: "月" })]), el("span", { text: "最多花的月份" })])
       ]));
       order.reverse().forEach(function (k) {
         var list = months[k].slice().reverse();
