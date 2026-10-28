@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Couple Garden 情侶花園</title>
-<meta name="app-version" content="22">
+<meta name="app-version" content="23">
 <meta name="theme-color" content="#010101">
 <meta name="color-scheme" content="dark">
 <meta name="darkreader-lock">
@@ -316,10 +316,16 @@ input::placeholder { color: var(--ink-faint); }
 .pf.bigbloom .head { filter: drop-shadow(0 0 14px rgba(255, 120, 140, .45)); }
 @media (prefers-reduced-motion: reduce) { .orb-fly, .orb-aura { animation: none; } }
 /* 苔蘚小精靈 */
-.pet { position: absolute; background-repeat: no-repeat; pointer-events: auto; cursor: pointer; transform-origin: 50% 100%; -webkit-tap-highlight-color: transparent; touch-action: pan-y; filter: drop-shadow(0 4px 6px rgba(0,0,0,.45)); }
+.pet { position: absolute; background-repeat: no-repeat; pointer-events: auto; cursor: pointer; transform-origin: 50% 100%; -webkit-tap-highlight-color: transparent; touch-action: pan-y; filter: brightness(.86) saturate(.88) contrast(1.04); }
 .pet.hop { animation: pethop .7s cubic-bezier(.3,.7,.4,1); }
 @keyframes pethop { 0% { transform: none; } 20% { transform: scale(1.06, .9); } 50% { transform: translateY(-22%) scale(.96, 1.06); } 80% { transform: scale(1.04, .95); } 100% { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .pet.hop { animation: none; } }
+.pet-shadow { position: absolute; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(0,0,0,.55), rgba(0,0,0,.25) 50%, transparent 72%); pointer-events: none; }
+/* 從主畫面打開（全螢幕）時，iOS 會把最上、最下一段畫面做模糊，內容要離邊緣遠一點 */
+@media (display-mode: standalone) {
+  #ui { padding-top: calc(env(safe-area-inset-top, 0px) + 30px) !important; }
+  #ui .dock { bottom: calc(env(safe-area-inset-bottom, 0px) + 18px); }
+}
 </style>
 </head>
 <body>
@@ -341,7 +347,7 @@ input::placeholder { color: var(--ink-faint); }
 <div id="sheet-root"></div>
 <div id="toast-root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=22"></script>
-<script src="app.js?v=22"></script>
+<script src="config.js?v=23"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>
