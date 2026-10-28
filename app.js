@@ -219,8 +219,7 @@
         var dp = Math.max(0, Math.min(1, (y - (by - hh)) / (2 * hh)));
         it.f.style.left = (x - it.f._W / 2) + "px"; it.f.style.top = (y - it.f._H) + "px";
         it.f.style.scale = (0.86 + 0.28 * dp).toFixed(3);
-        it.f.style.opacity = "1";
-        it.f.style.filter = "brightness(" + ((it.d.kind === "black" ? 0.95 : 0.7) + 0.3 * dp).toFixed(2) + ")" + (dp < 0.3 ? " blur(" + ((0.3 - dp) * 2).toFixed(2) + "px)" : "");   // 後排稍暗稍糊；小黑花本來就暗，不再壓暗   // 後排比較暗、比較糊（景深）
+        it.f.style.opacity = (0.8 + 0.2 * dp).toFixed(2);   // 後排稍淡。不用 CSS 濾鏡：iPhone Safari 在一直移動的圖層裡，有濾鏡的花會整朵畫不出來
         it.f.style.zIndex = String(Math.round(y));
         if (it.f.classList.contains("new")) it.f.style.setProperty("--drop", Math.round((o.cy - o.ry * 0.9) - y) + "px");
       });
@@ -267,7 +266,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=44"; PET_IMG.sleep.src = "pet-sleep.webp?v=44";
+  PET_IMG.idle.src = "pet-idle.webp?v=45"; PET_IMG.sleep.src = "pet-sleep.webp?v=45";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
