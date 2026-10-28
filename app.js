@@ -727,6 +727,47 @@
     if (n < now) n = new Date(now.getFullYear() + 1, base.getMonth(), base.getDate());
     return n;
   }
+  // 天數頁可以顯示的日子。key：meet 見面倒數、started 在一起、met 認識、d:<id> 自己新增的紀念日
+  function dayItems(now) {
+    var out = [];
+    if (couple.next_meet) { var left = daysBetween(now, parseDay(couple.next_meet)); if (left >= 0) out.push({ key: "meet", name: "見面倒數", n: left === 0 ? "今天" : String(left), label: left === 0 ? "見面" : "見面倒數", cls: " meet" }); }
+    if (couple.started_on) out.push({ key: "started", name: "在一起天數", n: String(daysBetween(parseDay(couple.started_on), now) + 1), label: "在一起・天" });
+    if (couple.met_on) out.push({ key: "met", name: "認識天數", n: String(daysBetween(parseDay(couple.met_on), now) + 1), label: "認識・天" });
+    dates.forEach(function (d) {
+      var left = daysBetween(now, nextOccurrence(d));
+      if (left >= 0) out.push({ key: "d:" + d.id, name: d.title + "（倒數）", n: left === 0 ? "今天" : String(left), label: d.title.slice(0, 5) + (left === 0 ? "" : "・倒數"), cls: " anniv", left: left });
+    });
+    return out;
+  }
+  function dayStats(now) {
+    var items = dayItems(now), picks = Array.isArray(me.day_picks) ? me.day_picks : null;
+    if (!picks) {   // 沒設定過：見面、在一起、認識，加上最近的一個紀念日
+      var base = items.filter(function (x) { return !x.left && x.left !== 0; });
+      var near = items.filter(function (x) { return x.left >= 0; }).sort(function (a, b) { return a.left - b.left; })[0];
+      return base.concat(near ? [near] : []).slice(0, 4);
+    }
+    return picks.map(function (k) { return items.filter(function (x) { return x.key === k; })[0]; }).filter(Boolean).slice(0, 4);
+  }
+  function pickBox(now) {
+    var items = dayItems(now), cur = dayStats(now).map(function (x) { return x.key; });
+    var box = el("div", { class: "picks" });
+    if (!items.length) box.appendChild(el("p", { class: "legend", text: "先在上面填日期或新增紀念日，就能選。" }));
+    items.forEach(function (x) {
+      var cb = el("input", { type: "checkbox" }); if (cur.indexOf(x.key) >= 0) cb.checked = true;
+      cb.addEventListener("change", function () {
+        var on = [].slice.call(box.querySelectorAll("input")).filter(function (c) { return c.checked; });
+        if (on.length > 4) { cb.checked = false; toast("最多選 4 個"); return; }
+      });
+      cb._key = x.key;
+      box.appendChild(el("label", { class: "check" }, [cb, el("span", { text: x.name })]));
+    });
+    if (items.length) box.appendChild(el("button", { class: "btn", text: "儲存顯示設定", onclick: function () {
+      var keys = [].slice.call(box.querySelectorAll("input")).filter(function (c) { return c.checked; }).map(function (c) { return c._key; });
+      closeSheet();
+      act(function () { return sb.from("cg_profiles").update({ day_picks: keys }).eq("id", me.id); }, "天數頁已更新");
+    } }));
+    return box;
+  }
   function openUs() {
     var started = el("input", { type: "date", id: "us-started", value: couple.started_on || "" });
     var met = el("input", { type: "date", id: "us-met", value: couple.met_on || "" });
@@ -757,6 +798,7 @@
         var patch = { started_on: started.value || null, met_on: met.value || null, next_meet: meet.value || null };
         closeSheet(); act(function () { return sb.from("cg_couples").update(patch).eq("id", couple.id); }, "已儲存");
       } })]),
+      el("h3", { text: "天數頁要顯示的（最多 4 個，只影響你自己）" }), pickBox(now),
       el("h3", { text: "紀念日倒數" }), list,
       el("h3", { text: "新增紀念日" }), title, day,
       el("label", { class: "check" }, [yearly, el("span", { text: "每年重複" })]),
@@ -942,15 +984,9 @@
 
     // 天數、見面倒數、兩地時間
     // 天數卡片：見面倒數、在一起、認識（最多 3 張）
-    var now = new Date(), stats = [];
-    if (couple.next_meet) { var left = daysBetween(now, parseDay(couple.next_meet)); if (left >= 0) stats.push({ n: left === 0 ? "今天" : String(left), label: left === 0 ? "見面" : "見面倒數", cls: " meet" }); }
-    if (couple.started_on) stats.push({ n: String(daysBetween(parseDay(couple.started_on), now) + 1), label: "在一起・天" });
-    if (couple.met_on) stats.push({ n: String(daysBetween(parseDay(couple.met_on), now) + 1), label: "認識・天" });
-    // 最近的一個紀念日也放進天數頁
-    var nextDate = dates.map(function (d) { return { d: d, left: daysBetween(now, nextOccurrence(d)) }; }).filter(function (x) { return x.left >= 0; }).sort(function (a, b) { return a.left - b.left; })[0];
-    if (nextDate) stats.push({ n: nextDate.left === 0 ? "今天" : String(nextDate.left), label: nextDate.d.title.slice(0, 5) + (nextDate.left === 0 ? "" : "・倒數"), cls: " anniv" });
+    var now = new Date(), stats = dayStats(now);
     var statRow = stats.length
-      ? el("div", { class: "stats" }, stats.slice(0, 4).map(function (x) { return el("button", { class: "stat" + (x.cls || ""), onclick: openUs }, [el("b", { text: x.n }), el("span", { text: x.label })]); }))
+      ? el("div", { class: "stats" }, stats.map(function (x) { return el("button", { class: "stat" + (x.cls || ""), onclick: openUs }, [el("b", { text: x.n }), el("span", { text: x.label })]); }))
       : el("div", { class: "stats" }, [el("button", { class: "stat setup", onclick: openUs }, [el("b", { text: "＋" }), el("span", { text: "設定紀念日" })])]);
     var tzLine = partner && partner.tz && partner.tz !== me.tz ? clockText(me) + "　·　" + clockText(partner) : "";
 
