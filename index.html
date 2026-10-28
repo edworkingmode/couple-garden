@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>情侶花園</title>
-<meta name="app-version" content="4">
+<meta name="app-version" content="5">
 <meta name="theme-color" content="#010101">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -101,6 +101,23 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outli
 .taskrow { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); }
 .chips-pick { display: flex; flex-wrap: wrap; gap: 6px; }
 .pick { font-size: 13px; padding: 6px 12px; border-radius: 999px; background: rgba(255,255,255,.08); }
+.stats { display: flex; justify-content: center; gap: 8px; margin: 2px 0 10px; flex-wrap: wrap; }
+.stat { min-width: 86px; padding: 8px 14px 7px; border-radius: 16px; background: rgba(16, 18, 17, .78); border: 1px solid rgba(255, 255, 255, .2); display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.stat b { font-family: var(--font-display); font-weight: 400; font-size: 28px; line-height: 1.1; color: #fff; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 11px; letter-spacing: .14em; color: rgba(255, 255, 255, .72); }
+.stat.meet { border-color: rgba(255, 138, 152, .55); }
+.stat.meet b { color: #ff8a98; }
+.stat.setup b { font-size: 22px; color: rgba(255, 255, 255, .8); }
+@media (max-height: 760px) {
+  .hero { margin-top: 2px; }
+  .gtabs { margin-bottom: 6px; }
+  .gtab { min-height: 28px; padding: 4px 14px; }
+  .stats { margin: 0 0 4px; }
+  .stat { padding: 5px 12px 4px; min-width: 78px; }
+  .stat b { font-size: 22px; }
+  .num { font-size: 52px; }
+  .caption { margin-top: 2px; }
+}
 .conn { font-size: 12px; color: var(--amber); letter-spacing: .08em; }
 .msgcard { border-radius: 16px; padding: 14px; background: rgba(255,255,255,.06); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
 .msgcard small { color: var(--ink-faint); font-size: 12px; letter-spacing: .1em; }
