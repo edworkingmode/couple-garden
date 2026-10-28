@@ -1,7 +1,7 @@
 (function () {
   "use strict";
   // ============================================================
-  // 瓶中花 Bloom Jar：帳號、情侶配對、自訂任務、紀念日、異地倒數
+  // Couple Garden 情侶花園：帳號、情侶配對、自訂任務、紀念日、異地倒數
   // ============================================================
   var cfg = window.GARDEN_CONFIG || {};
   var REQ_PER_DAY = 3, REDEEM_COST = 3;
@@ -588,8 +588,8 @@
       } catch (e) { toast(errText(e)); submit.disabled = false; }
     } });
     ui.appendChild(el("div", { class: "auth" }, [
-      el("p", { class: "eyebrow", text: "BLOOM JAR" }),
-      el("h1", { class: "auth-title", text: "瓶中花" }),
+      el("p", { class: "eyebrow", text: "COUPLE GARDEN" }),
+      el("h1", { class: "auth-title", text: "情侶花園" }),
       el("p", { class: "legend", text: "把彼此照顧好，瓶子裡就會長出花。" }),
       mode === "up" ? nickIn : null, email, pass, submit,
       el("button", { class: "linkbtn", text: mode === "up" ? "已經有帳號？登入" : "第一次來？註冊", onclick: function () { renderAuth(mode === "up" ? "in" : "up"); } })
@@ -676,7 +676,7 @@
     }
 
     ui.appendChild(el("div", { class: "top" }, [
-      el("div", { class: "brand" }, ["Bloom Jar", el("small", { text: nick(me) })]),
+      el("div", { class: "brand" }, ["Couple Garden", el("small", { text: nick(me) })]),
       el("div", { class: "topr" }, [
         el("span", { class: "conn", text: connText }),
         needTiltPermission() && !lsGet("cg-tilt") ? el("button", { class: "tiltbtn", onclick: askTilt }, ["✦ 開啟景深"]) : null
