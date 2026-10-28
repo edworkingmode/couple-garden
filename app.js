@@ -22,7 +22,7 @@
   var ASSET = (window.innerWidth <= 700 && window.innerHeight > window.innerWidth) ? ASSETS.mobile : ASSETS.full;
   var VID = { w: ASSET.w, h: ASSET.h }, ORB = ASSET.orb;
 
-  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [];
+  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [], rewards = [], claims = [];
   var view = "me", dockPage = 0, busy = false, loaded = false, poller = null, connText = "";
   var sheetOnClose = null, cardQueue = [], seen = {}, shown = {}, animated = {}, cardShown = {}, entered = false;
 
@@ -361,9 +361,13 @@
       sb.from("cg_tasks").select("*").eq("couple_id", me.couple_id).order("sort").order("created_at"),
       sb.from("cg_entries").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(2000),
       sb.from("cg_dates").select("*").eq("couple_id", me.couple_id).order("day"),
-      sb.from("cg_pings").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(20)
+      sb.from("cg_pings").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(20),
+      sb.from("cg_rewards").select("*").eq("couple_id", me.couple_id).eq("active", true).order("cost"),
+      sb.from("cg_reward_claims").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(200)
     ]);
     pings = res[5].error ? [] : (res[5].data || []);   // 還沒建 cg_pings 表時就當作沒有
+    rewards = res[6].error ? [] : (res[6].data || []);
+    claims = res[7].error ? [] : (res[7].data || []);
     res.slice(0, 5).forEach(function (r) { if (r.error) throw r.error; });
     couple = res[0].data;
     partner = (res[1].data || []).filter(function (p) { return p.id !== uid; })[0] || null;
@@ -405,7 +409,14 @@
     return entries.filter(function (e) {
       return (e.owner === partner.id && e.status === "pending" && (e.kind === "task" || e.kind === "request")) ||
         (e.kind === "black" && e.status === "appeal" && e.created_by === me.id);
-    }).sort(function (a, b) { return a.ts - b.ts; });
+    }).concat(claims.filter(function (c) { return c.owner === partner.id && c.status === "pending"; }).map(function (c) { return Object.assign({ _claim: true }, c); }))
+      .sort(function (a, b) { return a.ts - b.ts; });
+  }
+  // 可用朵數：瓶子裡的花不會被扣，兌換只扣這個數字（等確認中的也先扣住）
+  function points(owner) {
+    if (!owner) return 0;
+    var used = claims.filter(function (c) { return c.owner === owner.id && c.status !== "rejected"; }).reduce(function (t, c) { return t + c.cost; }, 0);
+    return Math.max(0, garden(owner).count - used);
   }
   function taskToday(t) {
     var d = today();
@@ -563,6 +574,17 @@
     var kids = [el("h2", { text: "待處理" })];
     if (!list.length) kids.push(el("p", { class: "legend", text: "目前沒有要你處理的。" }));
     list.forEach(function (e) {
+      if (e._claim) {
+        kids.push(el("div", { class: "pitem reward" }, [
+          el("div", { class: "who", text: nick(partner) + "想兌換獎勵" }),
+          el("p", { class: "quote", text: "🎁 " + e.title + "（" + e.cost + " 朵）" }),
+          el("div", { class: "row" }, [
+            el("button", { class: "btn primary", text: "確認兌換", onclick: function () { decideClaim(e, true); } }),
+            el("button", { class: "btn", text: "先不要", onclick: function () { openInput("跟" + nick(partner) + "說明原因", "例如：等見面再兌現（可留空）", "退回", function (v) { decideClaim(e, false, v); }); } })
+          ])
+        ]));
+        return;
+      }
       if (e.kind === "black") {
         kids.push(el("div", { class: "pitem black" }, [
           el("div", { class: "who", text: shortDate(e.day) + " " + nick(partner) + "申訴一朵小黑花" }),
@@ -584,13 +606,74 @@
     kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })]));
     openPanel(kids);
   }
+  // ---------- 獎勵 ----------
+  function openRewards() {
+    var owner = viewOwner(), mine = owner === me, pts = points(owner);
+    var list = rewards.filter(function (r) { return owner && r.owner === owner.id; });
+    var kids = [
+      el("h2", { text: mine ? "我的獎勵" : nick(owner) + "的獎勵" }),
+      el("div", { class: "pts" }, [el("b", { text: String(pts) }), el("span", { text: "可用朵數" })]),
+      el("p", { class: "legend", text: mine ? "由" + nick(partner) + "設定。兌換只扣可用朵數，瓶子裡的花會一直留著。" : "你送" + nick(owner) + "花，獎勵由你來開。" + nick(owner) + "兌換後要你確認。" })
+    ];
+    if (!list.length) kids.push(el("p", { class: "legend", text: mine ? "還沒有獎勵，可以請" + nick(partner) + "幫你設定。" : "還沒有獎勵，新增一個吧。" }));
+    list.forEach(function (r) {
+      var waiting = claims.some(function (c) { return c.reward_id === r.id && c.status === "pending"; });
+      var btn = mine
+        ? el("button", { class: "btn" + (pts >= r.cost && !waiting ? " primary" : ""), text: waiting ? "等確認" : pts >= r.cost ? "兌換" : "還差 " + (r.cost - pts) + " 朵", onclick: function () {
+            if (waiting || pts < r.cost) return;
+            confirmPanel("兌換「" + r.title + "」？", "會用掉 " + r.cost + " 朵可用朵數，" + nick(partner) + "確認後就成立。", "兌換", function () { claimReward(r); });
+          } })
+        : el("button", { class: "btn ghost", text: "移除", onclick: function () { confirmPanel("移除「" + r.title + "」？", "已經兌換過的紀錄會保留。", "移除", function () { act(function () { return sb.from("cg_rewards").update({ active: false }).eq("id", r.id); }, "已移除"); }); } });
+      if (waiting || (mine && pts < r.cost)) btn.setAttribute("disabled", "");
+      kids.push(el("div", { class: "rwrow" }, [el("div", { class: "rwcost" }, [el("b", { text: String(r.cost) }), el("span", { text: "朵" })]), el("div", { class: "rwtitle", text: r.title }), btn]));
+    });
+    if (!mine && partner) kids.push(el("button", { class: "btn primary", text: "新增獎勵", onclick: openAddReward }));
+    kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })]));
+    openPanel(kids);
+  }
+  function openAddReward() {
+    var title = el("input", { type: "text", id: "rw-title", placeholder: "獎勵內容，例如：見面請你吃大餐", maxlength: "40" });
+    var cost = el("input", { type: "number", id: "rw-cost", placeholder: "需要幾朵，例如 20", min: "1", max: "9999", inputmode: "numeric" });
+    openPanel([
+      el("h2", { text: "幫" + nick(partner) + "新增獎勵" }),
+      el("label", { class: "field" }, [el("span", { text: "獎勵" }), title]),
+      el("label", { class: "field" }, [el("span", { text: "朵數" }), cost]),
+      el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "取消", onclick: openRewards }),
+        el("button", { class: "btn primary", text: "新增", onclick: function () {
+          var t = title.value.trim(), c = parseInt(cost.value, 10);
+          if (!t) { toast("寫一下獎勵內容"); return; }
+          if (!(c >= 1 && c <= 9999)) { toast("朵數要是 1 到 9999"); return; }
+          closeSheet();
+          act(function () { return sb.from("cg_rewards").insert({ couple_id: couple.id, owner: partner.id, created_by: me.id, title: t, cost: c }); }, "已新增獎勵");
+        } })
+      ])
+    ]);
+  }
+  function claimReward(r) {
+    act(function () { return sb.from("cg_reward_claims").insert({ couple_id: couple.id, reward_id: r.id, owner: me.id, title: r.title, cost: r.cost, ts: Date.now() }); }, "已送出兌換，等" + nick(partner) + "確認");
+  }
+  function decideClaim(c, ok, reply) {
+    closeSheet();
+    act(function () { return sb.from("cg_reward_claims").update({ status: ok ? "confirmed" : "rejected", reply: reply || "" }).eq("id", c.id); }, ok ? "兌換成立 🎁" : "已退回");
+  }
   function openRecords() {
     var owner = viewOwner();
-    var list = entries.filter(function (e) { return owner && e.owner === owner.id; }).slice(0, 80);
+    var list = entries.filter(function (e) { return owner && e.owner === owner.id; })
+      .concat(claims.filter(function (c) { return owner && c.owner === owner.id; }).map(function (c) { return Object.assign({ _claim: true, day: dateKey(new Date(c.ts)) }, c); }))
+      .sort(function (a, b) { return b.ts - a.ts; }).slice(0, 80);
     var log = el("ul", { class: "log" });
     if (!list.length) log.appendChild(el("li", {}, [el("span", { class: "when" }), el("span", { class: "what", text: "還沒有紀錄。" })]));
     var tagText = { pending: "等確認", rejected: "已退回", appeal: "申訴中", revoked: "已撤銷", redeemed: "已贖回" };
     list.forEach(function (e) {
+      if (e._claim) {
+        var ct = { pending: "等確認", rejected: "沒有兌換" }[e.status];
+        log.appendChild(el("li", { class: "claim" }, [el("span", { class: "when", text: shortDate(e.day) }), el("div", { class: "what" }, [
+          el("div", {}, [el("b", { text: "🎁 兌換：" + e.title + "（" + e.cost + " 朵）" }), ct ? el("span", { class: "tag" + (e.status === "pending" ? "" : " no"), text: ct }) : null]),
+          e.reply ? el("p", { class: "reply", text: nick(e.owner === me.id ? partner : me) + "：" + e.reply }) : null
+        ])]));
+        return;
+      }
       var t = tagText[e.status];
       var tag = t ? el("span", { class: "tag" + (e.status === "pending" || e.status === "appeal" ? "" : " no"), text: t }) : null;
       log.appendChild(el("li", { class: e.kind === "black" ? "black" : "" }, [el("span", { class: "when", text: shortDate(e.day) }), el("div", { class: "what" }, [
@@ -905,6 +988,7 @@
     var ico = function (d) { return svg("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.6", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, [svg("path", { d: d })]); };
     var page2 = el("div", { class: "page" });
     page2.appendChild(el("button", { class: "tab", onclick: openPending }, [ico("M5 12.5l4.5 4.5L19 7.5"), "待處理", pend.length ? el("span", { class: "badge", text: String(pend.length) }) : null]));
+    page2.appendChild(el("button", { class: "tab", onclick: openRewards }, [ico("M4 11h16v9H4zM3 7h18v4H3zM12 7v13M12 7c-2-4-6-3-5 0M12 7c2-4 6-3 5 0"), "獎勵"]));
     page2.appendChild(el("button", { class: "tab", onclick: sendMiss }, [ico("M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"), "想你"]));
     page2.appendChild(el("button", { class: "tab", onclick: openRecords }, [ico("M8 6.5h11M8 12h11M8 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"), "紀錄"]));
 
