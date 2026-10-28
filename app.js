@@ -118,7 +118,7 @@
   }
 
   // ---------- 背景與玻璃球 ----------
-  var DOCK_GAP = 106;
+  var DOCK_GAP = 106 + (window.matchMedia && matchMedia("(display-mode: standalone)").matches ? 18 : 0);   // 主畫面全螢幕時工具列往上移了 18px
   function vidLayout() {
     var stage = document.getElementById("stage");
     var vw = stage.clientWidth, vh = stage.clientHeight;
@@ -186,7 +186,7 @@
       return;
     }
     var hF = Math.max(o.ry * 0.34, Math.min(o.ry * 0.6, o.ry * 0.6 * Math.sqrt(10 / Math.max(n, 10))));
-    var S0 = o.ry * 0.4 * Math.max(0.62, Math.min(1, Math.sqrt(14 / Math.max(n, 14))));
+    var S0 = o.ry * 0.62 * Math.max(0.6, Math.min(1, Math.sqrt(14 / Math.max(n, 14))));
     var M = 40, items = [], bloomIdx = 0, seedOff = owner && partner && owner.id === partner.id ? 500 : 0;
     var color = owner && owner.color === "blue" ? "blue" : "red";
     list.forEach(function (d, i) {
@@ -236,6 +236,11 @@
     p.style.left = (bx - W / 2) + "px"; p.style.top = (footY + H * 0.06 - H) + "px";
     p.style.zIndex = String(Math.round(footY));
     p.addEventListener("click", function () { if (!spin.moved) pokePet(); });
+    var shadow = el("div", { class: "pet-shadow", "aria-hidden": "true" });   // 腳下的影子，讓牠坐在苔蘚上而不是浮著
+    shadow.style.left = (bx - W * 0.42) + "px"; shadow.style.top = (footY - H * 0.07) + "px";
+    shadow.style.width = (W * 0.84) + "px"; shadow.style.height = (H * 0.16) + "px";
+    shadow.style.zIndex = String(Math.round(footY) - 1);
+    layer.appendChild(shadow);
     layer.appendChild(p);
     pet.el = p; drawPet();
     if (!pet.timer) pet.timer = setInterval(tickPet, 110);
