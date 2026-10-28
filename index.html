@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Couple Garden 情侶花園</title>
-<meta name="app-version" content="25">
+<meta name="app-version" content="26">
 <meta name="theme-color" content="#010101">
 <meta name="color-scheme" content="dark">
 <meta name="darkreader-lock">
@@ -74,11 +74,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outli
 .gtab.blue.on { background: rgba(90, 140, 240, .26); }
 .gdot.amber { background: var(--amber); }
 .gdot { position: absolute; top: 4px; right: 6px; width: 7px; height: 7px; border-radius: 50%; background: #6c9cff; }
-.pf.black .head { background-image: url(flowers-black.png); }
+
 .chips .blk b { color: #c9b2ff; }
 .dock .mbtn.blackbtn .name { color: #d9c9ff; }
 .pitem.black { border-color: #9b7ce0; background: rgba(155, 124, 224, .14); }
-.pf.blue .head { background-image: url(flowers-blue.png); }
+
 .orb-glow.blue { box-shadow: 0 0 70px 24px rgba(90, 140, 255, .45), inset 0 0 70px rgba(150, 185, 255, .35); }
 .dock .mbtn.wide { flex: 1 1 100%; }
 #orb-layer { transition: opacity .35s ease; }
@@ -149,8 +149,8 @@ html .btn.primary:active { transform: scale(.97); box-shadow: 0 0 28px 6px rgba(
 #orb-layer { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; }
 .flower { position: absolute; display: block; transform-origin: 50% 100%; overflow: visible; shape-rendering: geometricPrecision; }
 .pf { position: absolute; transform-origin: 50% 100%; }
-.pf .head { position: absolute; left: 0; top: 0; background-image: url(flowers.png); background-repeat: no-repeat; background-size: 300% 300%; }
-.pf .stem { position: absolute; left: 50%; border-radius: 2px; background: linear-gradient(to bottom, #36563a, #0d2013); transform-origin: 50% 0; }
+
+
 .pf.new { animation: bloom 1s cubic-bezier(.2, 1.4, .4, 1) both; }
 .flower.new { animation: bloom 1s cubic-bezier(.2, 1.4, .4, 1) both; }
 @keyframes bloom { from { transform: scale(0) rotate(-20deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
@@ -290,9 +290,9 @@ input::placeholder { color: var(--ink-faint); }
 /* 花的卡片 */
 .fcard { position: relative; margin: 4px 0 2px; padding: 26px 22px 22px; border-radius: 20px; text-align: center; background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)); border: 1px solid rgba(255,255,255,.12); animation: cardin .6s cubic-bezier(.2,.9,.3,1) both; }
 .fcard.black { background: linear-gradient(180deg, rgba(170,140,255,.1), rgba(255,255,255,.02)); }
-.fc-bloom { width: 260px; height: 260px; margin: -78px auto -84px; background-image: url(flowers.png); background-size: 300% 300%; filter: drop-shadow(0 6px 18px rgba(255,90,110,.35)); animation: bloomin .9s .15s cubic-bezier(.2,1.4,.4,1) both; }
-.fc-bloom.blue { background-image: url(flowers-blue.png); filter: drop-shadow(0 6px 18px rgba(90,140,240,.35)); }
-.fc-bloom.black { background-image: url(flowers-black.png); filter: drop-shadow(0 6px 18px rgba(170,140,255,.35)); }
+.fc-bloom { width: 130px; height: 128px; margin: 0 auto 6px; background: url(rose-red.png?v=26) center / contain no-repeat; filter: drop-shadow(0 6px 18px rgba(255,90,110,.35)); animation: bloomin .9s .15s cubic-bezier(.2,1.4,.4,1) both; }
+.fc-bloom.blue { background-image: url(rose-blue.png?v=26); filter: drop-shadow(0 6px 18px rgba(90,140,240,.35)); }
+.fc-bloom.black { background-image: url(rose-black.png?v=26); filter: drop-shadow(0 6px 18px rgba(170,140,255,.4)); }
 .fc-no { font-family: 'Instrument Serif', var(--font-display); font-style: italic; font-size: 34px; line-height: 1.1; }
 .fc-date { margin-top: 4px; font-size: 12px; letter-spacing: .2em; color: var(--ink-faint); }
 .fc-how { margin-top: 2px; font-size: 13px; letter-spacing: .08em; color: var(--ink-soft); }
@@ -313,7 +313,7 @@ input::placeholder { color: var(--ink-faint); }
 @keyframes orbfly { 0%, 100% { transform: translate(0, 0); opacity: .2; } 25% { transform: translate(14px, -10px); opacity: 1; } 50% { transform: translate(-6px, -22px); opacity: .5; } 75% { transform: translate(-16px, -6px); opacity: .9; } }
 .orb-aura { position: absolute; border-radius: 50%; background: radial-gradient(ellipse at 50% 70%, rgba(255, 214, 140, .16), rgba(255, 180, 120, .05) 45%, transparent 70%); pointer-events: none; z-index: 0; animation: aura 6s ease-in-out infinite; }
 @keyframes aura { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
-.pf.bigbloom .head { filter: drop-shadow(0 0 14px rgba(255, 120, 140, .45)); }
+.pf.bigbloom .rose { filter: drop-shadow(0 0 14px rgba(255, 120, 140, .5)); }
 @media (prefers-reduced-motion: reduce) { .orb-fly, .orb-aura { animation: none; } }
 /* 苔蘚小精靈 */
 .pet { position: absolute; background-repeat: no-repeat; pointer-events: auto; cursor: pointer; transform-origin: 50% 100%; -webkit-tap-highlight-color: transparent; touch-action: pan-y; filter: brightness(.88) saturate(.9); }
@@ -326,6 +326,10 @@ input::placeholder { color: var(--ink-faint); }
   #ui { padding-top: calc(env(safe-area-inset-top, 0px) + 30px) !important; }
   #ui .dock { bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) - 20px)); }   /* 貼近螢幕下緣，只留一點點距離 */
 }
+/* 瓶子裡的玫瑰 */
+.pf .rose { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: url(rose-red.png?v=26) center bottom / contain no-repeat; transform-origin: 50% 100%; filter: brightness(.92) drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.pf.blue .rose { background-image: url(rose-blue.png?v=26); }
+.pf.black .rose { background-image: url(rose-black.png?v=26); filter: brightness(.85) drop-shadow(0 0 5px rgba(180,150,255,.55)); }
 </style>
 </head>
 <body>
@@ -347,7 +351,7 @@ input::placeholder { color: var(--ink-faint); }
 <div id="sheet-root"></div>
 <div id="toast-root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=25"></script>
-<script src="app.js?v=25"></script>
+<script src="config.js?v=26"></script>
+<script src="app.js?v=26"></script>
 </body>
 </html>
