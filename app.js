@@ -183,28 +183,70 @@
     var hF = Math.max(o.ry * 0.34, Math.min(o.ry * 0.6, o.ry * 0.6 * Math.sqrt(10 / Math.max(n, 10))));
     var S0 = o.ry * 0.4 * Math.max(0.62, Math.min(1, Math.sqrt(14 / Math.max(n, 14))));
     var M = 40, items = [], bloomIdx = 0, seedOff = owner && partner && owner.id === partner.id ? 500 : 0;
+    var color = owner && owner.color === "blue" ? "blue" : "red";
     list.forEach(function (d, i) {
       var k = i % M, wrap = Math.floor(i / M);
-      var r = Math.sqrt((k + 0.5) / M) * (wrap ? 0.92 : 1), a = i * 2.39996 + wrap * 0.7;
-      items.push({ i: i, d: d, x: bx + Math.cos(a) * hw * r + (seeded(i + 90) - 0.5) * hF * 0.5, y: by + Math.sin(a) * hh * r + wrap * 3 + (seeded(i + 91) - 0.5) * hF * 0.3 });
-    });
-    items.sort(function (a, b) { return a.y - b.y; });
-    var color = owner && owner.color === "blue" ? "blue" : "red";
-    items.forEach(function (it) {
-      var isNew = !!(fresh && fresh[it.d.id]);
-      var dp = Math.max(0, Math.min(1, (it.y - (by - hh)) / (2 * hh)));
-      var S = S0 * (0.86 + 0.28 * dp);
-      var f = photoFlower(it.i + seedOff, isNew, S, ATLAS[it.d.kind === "black" ? "black" : color]);
-      if (isNew) { f.style.animationDelay = (bloomIdx++ * 0.25) + "s"; animated[it.d.id] = 1; }
-      f.style.opacity = (0.82 + 0.18 * dp).toFixed(2);
-      f.style.left = (it.x - S / 2) + "px"; f.style.top = (it.y - f._H) + "px";
-      (function (doc, nth, node) {
-        node.addEventListener("click", function () { node.classList.add("picked"); setTimeout(function () { node.classList.remove("picked"); }, 900); openEntry(doc, nth); });
-      })(it.d, it.i + 1, f);
+      var it = { i: i, d: d, r: Math.sqrt((k + 0.5) / M) * (wrap ? 0.92 : 1), a: i * 2.39996 + wrap * 0.7,
+        jx: (seeded(i + 90) - 0.5) * hF * 0.5, jy: wrap * 3 + (seeded(i + 91) - 0.5) * hF * 0.3 };
+      var isNew = !!(fresh && fresh[d.id]);
+      var f = photoFlower(i + seedOff, isNew, S0, ATLAS[d.kind === "black" ? "black" : color]);
+      if (isNew) { f.style.animationDelay = (bloomIdx++ * 0.25) + "s"; animated[d.id] = 1; }
+      f.addEventListener("click", function () {
+        if (spin.moved) return;
+        f.classList.add("picked"); setTimeout(function () { f.classList.remove("picked"); }, 900); openEntry(d, i + 1);
+      });
+      it.f = f; items.push(it);
       layer.appendChild(f);
     });
+    // 花繞著苔蘚的中心轉：角度改變時重新算位置、遠近大小與前後順序
+    spin.place = function () {
+      items.forEach(function (it) {
+        var ang = it.a + spin.theta;
+        var x = bx + Math.cos(ang) * hw * it.r + it.jx, y = by + Math.sin(ang) * hh * it.r + it.jy;
+        var dp = Math.max(0, Math.min(1, (y - (by - hh)) / (2 * hh)));
+        it.f.style.left = (x - S0 / 2) + "px"; it.f.style.top = (y - it.f._H) + "px";
+        it.f.style.scale = (0.86 + 0.28 * dp).toFixed(3);
+        it.f.style.opacity = (0.72 + 0.28 * dp).toFixed(2);
+        it.f.style.zIndex = String(Math.round(y));
+      });
+    };
+    spin.place();
+    var grab = el("div", { class: "orb-grab", "aria-hidden": "true" });
+    grab.style.left = (o.cx - o.rx) + "px"; grab.style.top = (o.cy - o.ry) + "px"; grab.style.width = (o.rx * 2) + "px"; grab.style.height = (o.ry * 2) + "px";
+    layer.insertBefore(grab, layer.firstChild);
+    spin.bind(layer, o.rx);
     addFront(layer, o);
   }
+  // 左右拖動玻璃缸：花跟著水平旋轉，放手後慢慢停下
+  var spin = { theta: 0, vel: 0, moved: false, place: null, bound: null, k: 0.01,
+    bind: function (layer, rx) {
+      spin.k = Math.PI / Math.max(80, rx * 1.6);
+      if (spin.bound === layer) return;
+      spin.bound = layer;
+      var down = null, lastX = 0, lastT = 0;
+      layer.addEventListener("pointerdown", function (e) {
+        if (!e.target.closest(".pf, .orb-grab")) return;
+        down = e.clientX; lastX = e.clientX; lastT = performance.now(); spin.vel = 0; spin.moved = false;
+      });
+      window.addEventListener("pointermove", function (e) {
+        if (down === null) return;
+        var dx = e.clientX - lastX, now = performance.now();
+        if (Math.abs(e.clientX - down) > 6) spin.moved = true;
+        spin.theta -= dx * spin.k; spin.vel = -dx * spin.k / Math.max(8, now - lastT) * 16;
+        lastX = e.clientX; lastT = now;
+        if (spin.place) spin.place();
+      });
+      window.addEventListener("pointerup", function () {
+        if (down === null) return;
+        down = null;
+        requestAnimationFrame(function coast() {
+          if (Math.abs(spin.vel) < 0.0005 || !spin.place) { setTimeout(function () { spin.moved = false; }, 0); return; }
+          spin.theta += spin.vel; spin.vel *= 0.94; spin.place();
+          requestAnimationFrame(coast);
+        });
+      });
+    }
+  };
   // 前排青苔遮罩：花長在青苔裡，而不是貼在畫面上
   function addFront(layer, o) {
     var img = el("img", { class: "orb-front", src: ASSET.front, alt: "", "aria-hidden": "true" });
