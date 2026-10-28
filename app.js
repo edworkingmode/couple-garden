@@ -801,10 +801,37 @@
     var n = streak(), a = myCheckin(), b = checkinOf(partner, localDay(partner.tz));
     var who = function (p, c) { return el("span", { class: "ck" + (c ? " ok" : "") }, [nick(p) + " " + (c ? (c.mood || "✓") : "…")]); };
     checkStreakCard(n);
-    return el("button", { class: "checkline" + (a ? "" : " todo"), onclick: function () { if (!a) openCheckin(); else if (b) toast(nick(partner) + "：" + (b.note || "今天平安")); else toast(nick(partner) + "今天還沒報平安"); } }, [
+    return el("button", { class: "checkline" + (a ? "" : " todo"), onclick: function () { if (!a) openCheckin(); else openCheckinView(); } }, [
       a ? el("span", { class: "streak", text: n ? "🔥 連續 " + n + " 天" : "✓ 已報平安" }) : el("span", { class: "streak", text: "💌 今天還沒報平安，點我" }),
       who(me, a), who(partner, b)
     ]);
+  }
+  // 點膠囊：看兩個人今天的報平安，還有最近 7 天
+  function ckCard(p, c) {
+    var t = c ? new Date(c.ts) : null;
+    return el("div", { class: "ckcard" + (c ? "" : " empty") }, [
+      el("div", { class: "ckhead" }, [el("span", { class: "ckmood", text: c ? (c.mood || "💌") : "…" }), el("b", { text: p === me ? "我" : nick(p) }), el("span", { class: "cktime", text: c ? pad(t.getHours()) + ":" + pad(t.getMinutes()) : "還沒報平安" })]),
+      c ? el("p", { class: "cknote", text: c.note || "今天平安" }) : null
+    ]);
+  }
+  function openCheckinView() {
+    var n = streak(), kids = [el("h2", { text: n ? "🔥 連續 " + n + " 天" : "今天的報平安" })];
+    kids.push(ckCard(partner, checkinOf(partner, localDay(partner.tz))));
+    kids.push(ckCard(me, myCheckin()));
+    var d = parseDay(localDay(me.tz)), days = [];
+    for (var i = 1; i <= 7; i++) { var x = new Date(d); x.setDate(d.getDate() - i); days.push(dateKey(x)); }
+    var past = days.map(function (k) { return { k: k, a: checkinOf(me, k), b: checkinOf(partner, k) }; }).filter(function (x) { return x.a || x.b; });
+    if (past.length) {
+      kids.push(el("h3", { text: "最近幾天" }));
+      kids.push(el("ul", { class: "log" }, past.map(function (x) {
+        return el("li", {}, [el("span", { class: "when", text: shortDate(x.k) }), el("div", { class: "what" }, [
+          x.b ? el("p", { class: "note", text: nick(partner) + " " + (x.b.mood || "✓") + "　" + (x.b.note || "") }) : el("p", { class: "note", text: nick(partner) + " 沒報" }),
+          x.a ? el("p", { class: "note", text: "我 " + (x.a.mood || "✓") + "　" + (x.a.note || "") }) : el("p", { class: "note", text: "我 沒報" })
+        ])]);
+      })));
+    }
+    kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })]));
+    openPanel(kids);
   }
   function openCheckin() {
     var done = myCheckin();
@@ -817,6 +844,7 @@
     var note = el("input", { type: "text", id: "checkin-note", placeholder: "想說的話，例如：平安到家了（可留空）", maxlength: "60" });
     openPanel([
       el("h2", { text: "報平安" }),
+      checkinOf(partner, localDay(partner.tz)) ? ckCard(partner, checkinOf(partner, localDay(partner.tz))) : null,
       el("p", { class: "legend", text: "今天過得怎麼樣？讓" + nick(partner) + "知道你平安。" }),
       row, note,
       el("div", { class: "row" }, [
