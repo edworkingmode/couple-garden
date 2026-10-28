@@ -128,7 +128,12 @@
     var sc = Math.max(target / (2 * ORB.rx * VID.w), vw / VID.w);
     var left = vw / 2 - ORB.cx * VID.w * sc;
     left = Math.min(0, Math.max(vw - VID.w * sc, left));
-    return { s: sc, left: left, top: vh - DOCK_GAP - VID.h * sc };
+    var top = vh - DOCK_GAP - VID.h * sc;
+    // 手機：文字區太高時，玻璃球最多往下讓 40px（下緣會藏到工具列後面）
+    var heroM = document.querySelector("#ui .hero"), hb = heroM ? heroM.getBoundingClientRect().bottom : 0;
+    var orbTop = top + (ORB.cy - ORB.ry) * VID.h * sc;
+    if (hb && orbTop < hb + 8) top += Math.min(40, hb + 8 - orbTop);
+    return { s: sc, left: left, top: top };
   }
   function layoutVideo() {
     var L = vidLayout();
@@ -640,9 +645,14 @@
     ]));
 
     // 天數、見面倒數、兩地時間
-    var now = new Date(), facts = [];
-    if (couple.started_on) facts.push("在一起第 " + (daysBetween(parseDay(couple.started_on), now) + 1) + " 天");
-    if (couple.next_meet) { var left = daysBetween(now, parseDay(couple.next_meet)); if (left >= 0) facts.push(left === 0 ? "今天見面" : "見面還有 " + left + " 天"); }
+    // 天數卡片：見面倒數、在一起、認識（最多 3 張）
+    var now = new Date(), stats = [];
+    if (couple.next_meet) { var left = daysBetween(now, parseDay(couple.next_meet)); if (left >= 0) stats.push({ n: left === 0 ? "今天" : String(left), label: left === 0 ? "見面" : "見面倒數", cls: " meet" }); }
+    if (couple.started_on) stats.push({ n: String(daysBetween(parseDay(couple.started_on), now) + 1), label: "在一起・天" });
+    if (couple.met_on) stats.push({ n: String(daysBetween(parseDay(couple.met_on), now) + 1), label: "認識・天" });
+    var statRow = stats.length
+      ? el("div", { class: "stats" }, stats.slice(0, 3).map(function (x) { return el("button", { class: "stat" + (x.cls || ""), onclick: openUs }, [el("b", { text: x.n }), el("span", { text: x.label })]); }))
+      : el("div", { class: "stats" }, [el("button", { class: "stat setup", onclick: openUs }, [el("b", { text: "＋" }), el("span", { text: "設定紀念日" })])]);
     var tzLine = partner && partner.tz && partner.tz !== me.tz ? nick(partner) + "在" + tzName(partner.tz) + " " + localTime(partner.tz) : "";
 
     var tabs = el("div", { class: "gtabs", role: "tablist" }, [["me", me], ["partner", partner]].map(function (pair) {
@@ -659,7 +669,7 @@
     var unit = owner && owner.color === "blue" ? "朵小藍花" : "朵小紅花";
     ui.appendChild(el("div", { class: "hero" }, [
       tabs,
-      el("p", { class: "eyebrow", text: facts.length ? facts.join("・") : (mineView ? "我的花園" : nick(partner) + "的花園") }),
+      statRow,
       el("div", { class: "count" }, [numEl, el("span", { class: "unit", text: unit })]),
       el("div", { class: "chips" }, [
         el("span", {}, ["本週 ", el("b", { text: String(g.week) }), " 朵"]),
@@ -725,7 +735,7 @@
     ui.appendChild(el("div", { class: "dock liquid-glass" }, [pages, dots]));
     pages.scrollLeft = dockPage * pages.clientWidth;
 
-    if (ASSET === ASSETS.full) layoutVideo();
+    layoutVideo();
     renderOrb(g.inOrb, fresh, owner);
   }
   function animateNum(node, from, to, delay) {
