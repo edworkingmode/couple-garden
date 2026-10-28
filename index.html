@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Couple Garden 情侶花園</title>
-<meta name="app-version" content="21">
+<meta name="app-version" content="22">
 <meta name="theme-color" content="#010101">
 <meta name="color-scheme" content="dark">
 <meta name="darkreader-lock">
@@ -315,6 +315,11 @@ input::placeholder { color: var(--ink-faint); }
 @keyframes aura { 0%, 100% { opacity: .7; } 50% { opacity: 1; } }
 .pf.bigbloom .head { filter: drop-shadow(0 0 14px rgba(255, 120, 140, .45)); }
 @media (prefers-reduced-motion: reduce) { .orb-fly, .orb-aura { animation: none; } }
+/* 苔蘚小精靈 */
+.pet { position: absolute; background-repeat: no-repeat; pointer-events: auto; cursor: pointer; transform-origin: 50% 100%; -webkit-tap-highlight-color: transparent; touch-action: pan-y; filter: drop-shadow(0 4px 6px rgba(0,0,0,.45)); }
+.pet.hop { animation: pethop .7s cubic-bezier(.3,.7,.4,1); }
+@keyframes pethop { 0% { transform: none; } 20% { transform: scale(1.06, .9); } 50% { transform: translateY(-22%) scale(.96, 1.06); } 80% { transform: scale(1.04, .95); } 100% { transform: none; } }
+@media (prefers-reduced-motion: reduce) { .pet.hop { animation: none; } }
 </style>
 </head>
 <body>
@@ -336,7 +341,7 @@ input::placeholder { color: var(--ink-faint); }
 <div id="sheet-root"></div>
 <div id="toast-root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=21"></script>
-<script src="app.js?v=21"></script>
+<script src="config.js?v=22"></script>
+<script src="app.js?v=22"></script>
 </body>
 </html>
