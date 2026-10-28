@@ -151,22 +151,16 @@
     var L = vidLayout();
     return { cx: L.left + ORB.cx * VID.w * L.s, cy: L.top + ORB.cy * VID.h * L.s, rx: ORB.rx * VID.w * L.s, ry: ORB.ry * VID.h * L.s };
   }
+  // 一朵玫瑰（含莖和葉）。每朵用編號決定左右翻轉、歪斜和高矮，看起來才不會一模一樣
   function photoFlower(i, isNew, S, atlas) {
-    var idx = Math.floor(seeded(i * 3 + 1) * 9), col = idx % 3, row = Math.floor(idx / 3);
-    var flip = seeded(i * 5 + 2) > 0.5 ? -1 : 1, tilt = (seeded(i * 7 + 3) - 0.5) * 30, lean = (seeded(i * 11 + 4) - 0.5) * 12;
-    var stemH = S * (0.45 + seeded(i * 13 + 5) * 0.3), H = S * 0.55 + stemH;
+    var flip = seeded(i * 5 + 2) > 0.5 ? -1 : 1, tilt = (seeded(i * 7 + 3) - 0.5) * 18, k = 0.85 + seeded(i * 13 + 5) * 0.3;
+    var w = S * 0.72 * k, H = w * 360 / 365;
     var f = el("div", { class: "pf" + atlas + (isNew ? " new" : ""), "aria-hidden": "true" });
-    f.style.width = S + "px"; f.style.height = H + "px";
-    var sw = Math.max(1.2, S * 0.035);
-    var stem = el("div", { class: "stem" });
-    stem.style.top = (S * 0.5) + "px"; stem.style.height = (H - S * 0.5) + "px"; stem.style.width = sw + "px";
-    stem.style.marginLeft = (-sw / 2) + "px"; stem.style.transform = "rotate(" + lean.toFixed(1) + "deg)";
-    var head = el("div", { class: "head" });
-    head.style.width = S + "px"; head.style.height = S + "px";
-    head.style.backgroundPosition = (col * 50) + "% " + (row * 50) + "%";
-    head.style.transform = "scaleX(" + flip + ") rotate(" + tilt.toFixed(1) + "deg)";
-    f.appendChild(stem); f.appendChild(head);
-    f._H = H;
+    f.style.width = w + "px"; f.style.height = H + "px";
+    var rose = el("div", { class: "rose" });
+    rose.style.transform = "scaleX(" + flip + ") rotate(" + tilt.toFixed(1) + "deg)";
+    f.appendChild(rose);
+    f._H = H; f._W = w;
     return f;
   }
   function renderOrb(list, fresh, owner) {
@@ -191,7 +185,8 @@
     var color = owner && owner.color === "blue" ? "blue" : "red";
     list.forEach(function (d, i) {
       var k = i % M, wrap = Math.floor(i / M);
-      var it = { i: i, d: d, r: Math.sqrt((k + 0.5) / M) * (wrap ? 0.92 : 1), a: i * 2.39996 + wrap * 0.7,
+      var it = { i: i, d: d, r: (0.4 + 0.6 * Math.sqrt((k + 0.5) / M)) * (wrap ? 0.92 : 1),   // 中間留給小精靈
+        a: i * 2.39996 + wrap * 0.7,
         jx: (seeded(i + 90) - 0.5) * hF * 0.5, jy: wrap * 3 + (seeded(i + 91) - 0.5) * hF * 0.3 };
       var isNew = !!(fresh && fresh[d.id]);
       var f = photoFlower(i + seedOff, isNew, S0, ATLAS[d.kind === "black" ? "black" : color]);
@@ -209,7 +204,7 @@
         var ang = it.a + spin.theta;
         var x = bx + Math.cos(ang) * hw * it.r + it.jx, y = by + Math.sin(ang) * hh * it.r + it.jy;
         var dp = Math.max(0, Math.min(1, (y - (by - hh)) / (2 * hh)));
-        it.f.style.left = (x - S0 / 2) + "px"; it.f.style.top = (y - it.f._H) + "px";
+        it.f.style.left = (x - it.f._W / 2) + "px"; it.f.style.top = (y - it.f._H) + "px";
         it.f.style.scale = (0.86 + 0.28 * dp).toFixed(3);
         it.f.style.opacity = (0.72 + 0.28 * dp).toFixed(2);
         it.f.style.zIndex = String(Math.round(y));
@@ -297,7 +292,7 @@
     if (n >= 50) {
       var big = photoFlower(777, false, S0 * 2.1, ATLAS[color]);
       big.classList.add("bigbloom");
-      big.style.left = (bx + hw * 0.45 - S0 * 1.05) + "px"; big.style.top = (by - hh * 0.55 - big._H) + "px";   // 開在小精靈的右後方
+      big.style.left = (bx + hw * 0.45 - big._W / 2) + "px"; big.style.top = (by - hh * 0.55 - big._H) + "px";   // 開在小精靈的右後方
       big.style.zIndex = String(Math.round(by - hh * 0.55));
       big.style.pointerEvents = "none";
       layer.appendChild(big);
@@ -518,9 +513,7 @@
       : e.kind === "request" ? nick(owner) + "申請，" + nick(owner === me ? partner : me) + "確認"
       : nick(owner) + "完成「" + taskName(e) + "」";
     var col = black ? "black" : (owner && owner.color === "blue" ? "blue" : "red");
-    var idx = Math.floor(seeded((nth - 1 + (owner && partner && owner.id === partner.id ? 500 : 0)) * 3 + 1) * 9);  // 跟瓶子裡同一朵花長得一樣
     var bloom = el("div", { class: "fc-bloom " + col, "aria-hidden": "true" });
-    bloom.style.backgroundPosition = (idx % 3) * 50 + "% " + Math.floor(idx / 3) * 50 + "%";
     var card = el("div", { class: "fcard" + (black ? " black" : "") }, [
       bloom,
       el("div", { class: "fc-no", text: black ? "小黑花" : "No. " + nth }),
