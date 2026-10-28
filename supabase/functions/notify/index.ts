@@ -21,6 +21,22 @@ async function plan(table: string, type: string, r: any, old: any) {
     const to = await other(r.couple_id, r.from_id);
     return to && { to, title: "💗 " + await nick(r.from_id) + "想你了", body: "打開花園看看吧", tag: "miss" };
   }
+  if (table === "cg_rewards" && type === "INSERT") {
+    return { to: r.owner, title: "🎁 " + await nick(r.created_by) + "幫你新增獎勵", body: r.title + "（" + r.cost + " 朵）", tag: "reward" };
+  }
+  if (table === "cg_reward_claims") {
+    if (type === "INSERT") {
+      const to = await other(r.couple_id, r.owner);
+      return to && { to, title: "🎁 " + await nick(r.owner) + "想兌換獎勵", body: r.title + "（" + r.cost + " 朵）", tag: "claim" };
+    }
+    if (type === "UPDATE" && old && old.status !== r.status) {
+      const by = await other(r.couple_id, r.owner);
+      const who = by ? await nick(by) : "對方";
+      if (r.status === "confirmed") return { to: r.owner, title: "🎁 兌換成立", body: who + "答應了：" + r.title, tag: "claim-ok" };
+      if (r.status === "rejected") return { to: r.owner, title: "兌換先暫停", body: r.reply || who + "說先不要", tag: "claim-no" };
+    }
+    return null;
+  }
   if (table !== "cg_entries") return null;
   const from = await nick(r.created_by);
   if (type === "INSERT") {
