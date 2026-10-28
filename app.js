@@ -261,7 +261,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=50"; PET_IMG.sleep.src = "pet-sleep.webp?v=50";
+  PET_IMG.idle.src = "pet-idle.webp?v=51"; PET_IMG.sleep.src = "pet-sleep.webp?v=51";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -726,15 +726,18 @@
     var pn = partner ? nick(partner) : "對方", kids;
     if (key === "act") {
       var pend = myPending(), owed = tickets().filter(function (c) { return c.owner === me.id; }).length, left = Math.max(0, REQ_PER_DAY - reqsToday().length);
+      // 一個畫面放得下，不用上下滑：上排兩個大按鈕（種花），下面兩欄小格
       kids = [el("h2", { text: "互動" }),
-        el("div", { class: "hubgrid" }, [
-          hubBtn("🌹", "申請一朵花", "做到一件事，請" + pn + "確認後種進你的瓶子（今天還能 " + left + " 次）", startRequest, 0, "big"),
-          hubBtn("💐", "送" + pn + "一朵花", "不用確認，直接種進" + pn + "的瓶子", startGive, 0, "big"),
-          hubBtn("✅", "待處理", pend.length ? pend.length + " 件等你確認" : "目前沒有要確認的", openPending, pend.length),
-          hubBtn("💗", "想你", "讓" + pn + "的瓶子亮一下", function () { closeSheet(); sendMiss(); }),
-          hubBtn("🎁", "獎勵", "用花換" + pn + "開的獎勵，也幫對方開獎勵", openRewards),
-          tickets().length ? hubBtn("🎟️", "待兌現的券", owed ? pn + "欠你 " + owed + " 張" : "你欠" + pn + "的券", openTickets) : null,
-          hubBtn("🖤", "給" + pn + "小黑花", "對方可以申訴，或用花贖回", startBlack, 0, "dim")
+        el("div", { class: "hubgrid two" }, [
+          hubBtn("🌹", "申請一朵花", "今天還能 " + left + " 次", startRequest, 0, "big tile"),
+          hubBtn("💐", "送" + pn + "一朵花", "直接種進對方瓶子", startGive, 0, "big tile")
+        ]),
+        el("div", { class: "hubgrid two" }, [
+          hubBtn("✅", "待處理", pend.length ? pend.length + " 件等你確認" : "沒有要確認的", openPending, pend.length, "tile"),
+          hubBtn("💗", "想你", "讓對方瓶子亮一下", function () { closeSheet(); sendMiss(); }, 0, "tile"),
+          hubBtn("🎁", "獎勵", "用花換獎勵", openRewards, 0, "tile"),
+          tickets().length ? hubBtn("🎟️", "待兌現的券", owed ? pn + "欠你 " + owed + " 張" : "你欠" + pn + "的", openTickets, 0, "tile") : null,
+          hubBtn("🖤", "小黑花", "給" + pn + "，可申訴或贖回", startBlack, 0, "tile dim")
         ])];
     } else if (key === "mem") {
       var st = dayStats(new Date());
