@@ -167,3 +167,33 @@ grant execute on function cg_my_couple() to authenticated;
 grant execute on function cg_create_couple() to authenticated;
 grant execute on function cg_join_couple(text) to authenticated;
 grant execute on function cg_leave_couple() to authenticated;
+
+-- ------------------------------------------------------------
+-- 「想你」：按一下就讓對方的瓶子亮起來（2026-10-28 新增）
+-- ------------------------------------------------------------
+create table if not exists cg_pings (
+  id uuid primary key default gen_random_uuid(),
+  couple_id uuid not null references cg_couples (id) on delete cascade,
+  from_id uuid not null references auth.users (id) on delete cascade,
+  ts bigint not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists cg_pings_couple_idx on cg_pings (couple_id, ts desc);
+alter table cg_pings enable row level security;
+drop policy if exists "cg pings read" on cg_pings;
+drop policy if exists "cg pings insert" on cg_pings;
+create policy "cg pings read" on cg_pings for select to authenticated using (couple_id = cg_my_couple());
+create policy "cg pings insert" on cg_pings for insert to authenticated
+  with check (couple_id = cg_my_couple() and from_id = auth.uid());
+create table if not exists cg_push_subs (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  endpoint text unique not null,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now()
+);
+alter table cg_push_subs enable row level security;
+drop policy if exists "cg push own" on cg_push_subs;
+create policy "cg push own" on cg_push_subs for all to authenticated
+  using (user_id = auth.uid()) with check (user_id = auth.uid());
