@@ -118,7 +118,7 @@
   }
 
   // ---------- 背景與玻璃球 ----------
-  var DOCK_GAP = 106 - (window.matchMedia && matchMedia("(display-mode: standalone)").matches ? 20 : 0);   // 主畫面全螢幕時工具列貼近下緣，瓶子跟著往下
+  var DOCK_GAP = 106 + (window.matchMedia && matchMedia("(display-mode: standalone)").matches ? 6 : 0);   // 主畫面全螢幕時工具列貼近下緣；瓶子多留一點空間，不被工具列擋到
   function vidLayout() {
     var stage = document.getElementById("stage");
     var vw = stage.clientWidth, vh = stage.clientHeight;
@@ -247,7 +247,7 @@
   }
   function drawPet() {
     if (!pet.el) return;
-    var sheet = (pet.mode === "idle" ? "pet-idle.webp" : "pet-sleep.webp") + "?v=24", n = pet.mode === "idle" ? PET.idle : PET.sleep;
+    var sheet = (pet.mode === "idle" ? "pet-idle.webp" : "pet-sleep.webp") + "?v=25", n = pet.mode === "idle" ? PET.idle : PET.sleep;
     pet.el.style.backgroundImage = "url(" + sheet + ")";
     pet.el.style.backgroundSize = (n * 100) + "% 100%";
     pet.el.style.backgroundPosition = (pet.f / (n - 1) * 100) + "% 0";
