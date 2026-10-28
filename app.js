@@ -190,7 +190,7 @@
       return;
     }
     var hF = Math.max(o.ry * 0.34, Math.min(o.ry * 0.6, o.ry * 0.6 * Math.sqrt(10 / Math.max(n, 10))));
-    var S0 = o.ry * 0.62 * Math.max(0.6, Math.min(1, Math.sqrt(14 / Math.max(n, 14))));
+    var S0 = o.ry * 0.8 * Math.max(0.6, Math.min(1, Math.sqrt(14 / Math.max(n, 14))));
     var M = 40, items = [], bloomIdx = 0, seedOff = owner && partner && owner.id === partner.id ? 500 : 0;
     var color = gardenColor(owner);
     list.forEach(function (d, i) {
@@ -212,7 +212,7 @@
     spin.place = function () {
       items.forEach(function (it) {
         var ang = it.a + spin.theta;
-        var x = bx + Math.cos(ang) * hw * it.r + it.jx, y = by + Math.sin(ang) * hh * it.r + it.jy;
+        var x = bx + Math.cos(ang) * hw * it.r + it.jx, sn = Math.sin(ang), y = by + (sn < 0 ? sn * 0.55 : sn) * hh * it.r + it.jy;   // 後半圈壓扁一點，後排的花不會縮到看不見
         // 在小精靈後面、又被牠擋住寬度的花，往旁邊推出去
         var pb = petBox(o, bx, by), gap = pb.w * 0.5 + it.f._W * 0.3;
         if (y < pb.foot && Math.abs(x - pb.x) < gap) x = pb.x + (x >= pb.x ? gap : -gap);
@@ -220,7 +220,7 @@
         it.f.style.left = (x - it.f._W / 2) + "px"; it.f.style.top = (y - it.f._H) + "px";
         it.f.style.scale = (0.86 + 0.28 * dp).toFixed(3);
         it.f.style.opacity = "1";
-        it.f.style.filter = "brightness(" + (0.55 + 0.4 * dp).toFixed(2) + ")" + (dp < 0.45 ? " blur(" + ((0.45 - dp) * 2.2).toFixed(2) + "px)" : "");   // 後排比較暗、比較糊（景深）
+        it.f.style.filter = "brightness(" + ((it.d.kind === "black" ? 0.95 : 0.7) + 0.3 * dp).toFixed(2) + ")" + (dp < 0.3 ? " blur(" + ((0.3 - dp) * 2).toFixed(2) + "px)" : "");   // 後排稍暗稍糊；小黑花本來就暗，不再壓暗   // 後排比較暗、比較糊（景深）
         it.f.style.zIndex = String(Math.round(y));
         if (it.f.classList.contains("new")) it.f.style.setProperty("--drop", Math.round((o.cy - o.ry * 0.9) - y) + "px");
       });
@@ -259,7 +259,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=42"; PET_IMG.sleep.src = "pet-sleep.webp?v=42";
+  PET_IMG.idle.src = "pet-idle.webp?v=43"; PET_IMG.sleep.src = "pet-sleep.webp?v=43";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
