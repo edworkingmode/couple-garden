@@ -121,7 +121,7 @@
     var target = Math.min(vw * 0.82, vh * 0.42);
     if (ASSET === ASSETS.full) {
       var hero = document.querySelector("#ui .hero"), heroBottom = hero ? hero.getBoundingClientRect().bottom : 0;
-      var scHero = (vh - DOCK_GAP - heroBottom - 84) / (VID.h * (1 - ORB.cy + ORB.ry));
+      var scHero = (vh - DOCK_GAP - heroBottom - 20) / (VID.h * (1 - ORB.cy + ORB.ry));
       var scD = Math.max(0.12, Math.min(target / (2 * ORB.rx * VID.w), scHero));
       return { s: scD, left: vw / 2 - ORB.cx * VID.w * scD, top: vh - DOCK_GAP - VID.h * scD };
     }
@@ -176,7 +176,7 @@
     dim.style.left = (o.cx - o.rx * 0.97) + "px"; dim.style.top = (o.cy - o.ry * 0.97) + "px"; dim.style.width = (o.rx * 1.94) + "px"; dim.style.height = (o.ry * 1.94) + "px";
     var bx = o.cx, by = o.cy + 0.39 * o.ry, hw = 0.8 * o.rx, hh = 0.26 * o.ry;
     if (!n) {
-      layer.appendChild(el("div", { class: "orb-hint", style: "left:" + o.cx + "px;top:" + (o.cy + 0.2 * o.ry) + "px", text: "第一朵花，等著被種下" }));
+      layer.appendChild(el("div", { class: "orb-hint", style: "left:" + o.cx + "px;top:" + (o.cy - 0.12 * o.ry) + "px", text: "第一朵花，等著被種下" }));
       addFront(layer, o);
       return;
     }
@@ -685,6 +685,7 @@
     ui.appendChild(el("div", { class: "hero" }, [
       tabs,
       el("div", { class: "chips" }, [
+        el("span", {}, ["共 ", el("b", { text: String(g.count) }), " 朵"]),
         el("span", {}, ["本週 ", el("b", { text: String(g.week) }), " 朵"]),
         el("span", { class: "blk" }, ["小黑花 ", el("b", { text: String(g.blacks.length) }), " 朵"])
       ]),
