@@ -1,7 +1,7 @@
 (function () {
   "use strict";
   // ============================================================
-  // 情侶花園（新版）：帳號、情侶配對、自訂任務、紀念日、異地倒數
+  // 瓶中花 Bloom Jar：帳號、情侶配對、自訂任務、紀念日、異地倒數
   // ============================================================
   var cfg = window.GARDEN_CONFIG || {};
   var REQ_PER_DAY = 3, REDEEM_COST = 3;
@@ -348,9 +348,9 @@
     if (reqsToday().length >= REQ_PER_DAY) { toast("今天已經申請 " + REQ_PER_DAY + " 次了，明天再來"); return; }
     act(function () { return insertEntry({ owner: me.id, kind: "request", status: "pending", note: reason }); }, "已送出，等" + nick(partner) + "確認");
   }
-  function giveFlower(reason) { act(function () { return insertEntry({ owner: partner.id, kind: "gift", status: "confirmed", note: reason }); }, "送出了，" + nick(partner) + "的玻璃球長出一朵"); }
+  function giveFlower(reason) { act(function () { return insertEntry({ owner: partner.id, kind: "gift", status: "confirmed", note: reason }); }, "送出了，" + nick(partner) + "的瓶子長出一朵"); }
   function giveBlack(reason) { act(function () { return insertEntry({ owner: partner.id, kind: "black", status: "confirmed", note: reason }); }, "已給" + nick(partner) + "一朵小黑花"); }
-  function confirmEntry(e, reply) { act(function () { return updateEntry(e, { status: "confirmed", reply: reply || "", ts: Date.now() }); }, "已確認，" + nick(partner) + "的玻璃球長出一朵"); }
+  function confirmEntry(e, reply) { act(function () { return updateEntry(e, { status: "confirmed", reply: reply || "", ts: Date.now() }); }, "已確認，" + nick(partner) + "的瓶子長出一朵"); }
   function rejectEntry(e, reply) { act(function () { return updateEntry(e, { status: "rejected", reply: reply || "" }); }, "已退回"); }
   function appealBlack(e, text) { act(function () { return updateEntry(e, { status: "appeal", reply: text }); }, "已送出申訴，等" + nick(partner) + "決定"); }
   function decideAppeal(e, revoke) { act(function () { return updateEntry(e, { status: revoke ? "revoked" : "confirmed" }); }, revoke ? "已撤銷這朵小黑花" : "已駁回申訴"); }
@@ -380,7 +380,7 @@
       btns.push(el("button", { class: "btn primary", text: "用 " + REDEEM_COST + " 朵花贖回", onclick: function () {
         var c = garden(me).count;
         if (c < REDEEM_COST) { toast("花不夠 " + REDEEM_COST + " 朵，還不能贖回"); return; }
-        confirmPanel("用 " + REDEEM_COST + " 朵花換掉它？", "你現在有 " + c + " 朵花，換掉後剩 " + (c - REDEEM_COST) + " 朵。最舊的幾朵會離開玻璃球，紀錄還留著。", "換掉", function () { redeemBlack(e); });
+        confirmPanel("用 " + REDEEM_COST + " 朵花換掉它？", "你現在有 " + c + " 朵花，換掉後剩 " + (c - REDEEM_COST) + " 朵。最舊的幾朵會離開瓶子，紀錄還留著。", "換掉", function () { redeemBlack(e); });
       } }));
     }
     if (e.created_by === me.id && e.status === "appeal") {
@@ -460,7 +460,7 @@
   function showMilestone(ms) {
     openPanel([
       el("h2", { text: "第 " + ms + " 朵花" }),
-      el("p", { class: "legend", style: "font-size:15px;color:var(--ink-soft)", text: "你的玻璃球裡已經有 " + ms + " 朵花了。" }),
+      el("p", { class: "legend", style: "font-size:15px;color:var(--ink-soft)", text: "你的瓶子裡已經有 " + ms + " 朵花了。" }),
       el("div", { class: "row" }, [el("button", { class: "btn primary", text: "好", onclick: closeSheet })])
     ]);
   }
@@ -588,9 +588,9 @@
       } catch (e) { toast(errText(e)); submit.disabled = false; }
     } });
     ui.appendChild(el("div", { class: "auth" }, [
-      el("p", { class: "eyebrow", text: "LITTLE RED FLOWER" }),
-      el("h1", { class: "auth-title", text: "情侶花園" }),
-      el("p", { class: "legend", text: "把彼此照顧好，玻璃球裡就會長出花。" }),
+      el("p", { class: "eyebrow", text: "BLOOM JAR" }),
+      el("h1", { class: "auth-title", text: "瓶中花" }),
+      el("p", { class: "legend", text: "把彼此照顧好，瓶子裡就會長出花。" }),
       mode === "up" ? nickIn : null, email, pass, submit,
       el("button", { class: "linkbtn", text: mode === "up" ? "已經有帳號？登入" : "第一次來？註冊", onclick: function () { renderAuth(mode === "up" ? "in" : "up"); } })
     ]));
@@ -676,7 +676,7 @@
     }
 
     ui.appendChild(el("div", { class: "top" }, [
-      el("div", { class: "brand" }, ["Little Red Flower", el("small", { text: nick(me) })]),
+      el("div", { class: "brand" }, ["Bloom Jar", el("small", { text: nick(me) })]),
       el("div", { class: "topr" }, [
         el("span", { class: "conn", text: connText }),
         needTiltPermission() && !lsGet("cg-tilt") ? el("button", { class: "tiltbtn", onclick: askTilt }, ["✦ 開啟景深"]) : null
