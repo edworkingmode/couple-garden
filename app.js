@@ -534,7 +534,7 @@
     ui.textContent = "";
     var email = el("input", { type: "email", id: "auth-email", placeholder: "Email", autocomplete: "email" });
     var pass = el("input", { type: "password", id: "auth-pass", placeholder: "密碼（至少 6 個字）", autocomplete: mode === "up" ? "new-password" : "current-password" });
-    var nickIn = el("input", { type: "text", id: "auth-nick", placeholder: "你的暱稱，例如：安安老大", maxlength: "20" });
+    var nickIn = el("input", { type: "text", id: "auth-nick", placeholder: "你的暱稱", maxlength: "20" });
     var submit = el("button", { class: "btn primary wideb", text: mode === "up" ? "註冊" : "登入", onclick: async function () {
       if (!email.value || !pass.value) { toast("請填 Email 和密碼"); return; }
       if (mode === "up" && !nickIn.value.trim()) { toast("請填暱稱"); return; }
