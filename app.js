@@ -198,7 +198,7 @@
       it.f = f; items.push(it);
       layer.appendChild(f);
     });
-    // 花繞著苔蘚的中心轉：角度改變時重新算位置、遠近大小與前後順序
+    // 依位置算遠近大小與前後順序
     spin.place = function () {
       items.forEach(function (it) {
         var ang = it.a + spin.theta;
@@ -215,10 +215,6 @@
     spin.place();
     grow(layer, o, list.filter(function (d) { return d.kind !== "black"; }).length, bx, by, hw, hh, S0, color);
     addPet(layer, bx, by, o);
-    var grab = el("div", { class: "orb-grab", "aria-hidden": "true" });
-    grab.style.left = (o.cx - o.rx) + "px"; grab.style.top = (o.cy - o.ry) + "px"; grab.style.width = (o.rx * 2) + "px"; grab.style.height = (o.ry * 2) + "px";
-    layer.insertBefore(grab, layer.firstChild);
-    spin.bind(layer, o.rx);
     addFront(layer, o);
   }
   // 苔蘚小精靈：坐在瓶子中間的土上。待機會呼吸、晃小芽，放著不管會睡著，點一下就醒來跳一下
@@ -300,36 +296,9 @@
       layer.appendChild(big);
     }
   }
-  // 左右拖動玻璃缸：花跟著水平旋轉，放手後慢慢停下
-  var spin = { theta: 0, vel: 0, moved: false, place: null, bound: null, k: 0.01,
-    bind: function (layer, rx) {
-      spin.k = Math.PI / Math.max(80, rx * 1.6);
-      if (spin.bound === layer) return;
-      spin.bound = layer;
-      var down = null, lastX = 0, lastT = 0;
-      layer.addEventListener("pointerdown", function (e) {
-        if (!e.target.closest(".pf, .orb-grab")) return;
-        down = e.clientX; lastX = e.clientX; lastT = performance.now(); spin.vel = 0; spin.moved = false;
-      });
-      window.addEventListener("pointermove", function (e) {
-        if (down === null) return;
-        var dx = e.clientX - lastX, now = performance.now();
-        if (Math.abs(e.clientX - down) > 6) spin.moved = true;
-        spin.theta -= dx * spin.k; spin.vel = -dx * spin.k / Math.max(8, now - lastT) * 16;
-        lastX = e.clientX; lastT = now;
-        if (spin.place) spin.place();
-      });
-      window.addEventListener("pointerup", function () {
-        if (down === null) return;
-        down = null;
-        requestAnimationFrame(function coast() {
-          if (Math.abs(spin.vel) < 0.0005 || !spin.place) { setTimeout(function () { spin.moved = false; }, 0); return; }
-          spin.theta += spin.vel; spin.vel *= 0.94; spin.place();
-          requestAnimationFrame(coast);
-        });
-      });
-    }
-  };
+  // 花的位置（原本可以拖動旋轉，已拿掉；角度固定為 0）
+  var spin = { theta: 0, moved: false, place: null };
+
   // 前排青苔遮罩：花長在青苔裡，而不是貼在畫面上
   function addFront(layer, o) {
     var box = function (n) {
@@ -491,7 +460,7 @@
   var INTRO = [
     ["每一朵花，都有它的意義", "做了一件想讓對方知道的事，就到「種花」頁申請一朵，寫下這朵花的意義。"],
     ["對方確認，花才會種下", "申請會出現在對方的「待處理」。對方確認後，花就會從瓶口落下，長在你的苔蘚上。"],
-    ["拖動瓶子，點開每一朵花", "左右拖動瓶子可以轉動裡面的花，點一朵就能看到那天寫下的話。也可以互相給小黑花、按「想你」。"]
+    ["點開每一朵花", "點瓶子裡的一朵花，就能看到那天寫下的話。也可以互相給小黑花、按「想你」、用花兌換獎勵。"]
   ];
   function showIntro(i) {
     var last = i === INTRO.length - 1;
