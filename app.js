@@ -22,7 +22,7 @@
   var ASSET = (window.innerWidth <= 700 && window.innerHeight > window.innerWidth) ? ASSETS.mobile : ASSETS.full;
   var VID = { w: ASSET.w, h: ASSET.h }, ORB = ASSET.orb;
 
-  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [], rewards = [], claims = [];
+  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [], rewards = [], claims = [], checkins = [];
   var view = "me", dockPage = 0, busy = false, loaded = false, poller = null, connText = "";
   var sheetOnClose = null, cardQueue = [], seen = {}, shown = {}, animated = {}, cardShown = {}, entered = false;
 
@@ -69,6 +69,10 @@
   function clockText(p) {
     var t = localTime(p.tz), h = parseInt(t, 10);
     return (p === me ? "我" : nick(p)) + "・" + tzName(p.tz) + " " + t + " " + (h >= 6 && h < 18 ? "☀︎" : "☾");
+  }
+  // 某個人「當地的今天」，例如 2026-10-28（報平安用各自的時區算）
+  function localDay(tz, d) {
+    try { return new Intl.DateTimeFormat("en-CA", { timeZone: tz || "Asia/Taipei", year: "numeric", month: "2-digit", day: "2-digit" }).format(d || new Date()); } catch (e) { return dateKey(d || new Date()); }
   }
   function localTime(tz) { try { return new Intl.DateTimeFormat("zh-TW", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()); } catch (e) { return ""; } }
   function errText(e) {
@@ -346,8 +350,10 @@
       sb.from("cg_dates").select("*").eq("couple_id", me.couple_id).order("day"),
       sb.from("cg_pings").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(20),
       sb.from("cg_rewards").select("*").eq("couple_id", me.couple_id).eq("active", true).order("cost"),
-      sb.from("cg_reward_claims").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(200)
+      sb.from("cg_reward_claims").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(200),
+      sb.from("cg_checkins").select("*").eq("couple_id", me.couple_id).order("day", { ascending: false }).limit(800)
     ]);
+    checkins = res[8].error ? [] : (res[8].data || []);
     pings = res[5].error ? [] : (res[5].data || []);   // 還沒建 cg_pings 表時就當作沒有
     rewards = res[6].error ? [] : (res[6].data || []);
     claims = res[7].error ? [] : (res[7].data || []);
@@ -723,7 +729,7 @@
         })));
       });
     }
-    kids.push(el("button", { class: "btn ghost libmore", text: "完整紀錄（含小黑花、退回、兌換）", onclick: function () { openRecords(owner); } }));
+    kids.push(el("button", { class: "btn ghost libmore", text: "完整紀錄（含小黑花、報平安、兌換）", onclick: function () { openRecords(owner); } }));
     kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })]));
     openPanel(kids);
   }
@@ -731,11 +737,19 @@
     var owner = who && who.id ? who : viewOwner();
     var list = entries.filter(function (e) { return owner && e.owner === owner.id; })
       .concat(claims.filter(function (c) { return owner && c.owner === owner.id; }).map(function (c) { return Object.assign({ _claim: true, day: dateKey(new Date(c.ts)) }, c); }))
+      .concat(checkins.filter(function (c) { return owner && c.user_id === owner.id; }).map(function (c) { return Object.assign({ _checkin: true }, c); }))
       .sort(function (a, b) { return b.ts - a.ts; }).slice(0, 80);
     var log = el("ul", { class: "log" });
     if (!list.length) log.appendChild(el("li", {}, [el("span", { class: "when" }), el("span", { class: "what", text: "還沒有紀錄。" })]));
     var tagText = { pending: "等確認", rejected: "已退回", appeal: "申訴中", revoked: "已撤銷", redeemed: "已贖回" };
     list.forEach(function (e) {
+      if (e._checkin) {
+        log.appendChild(el("li", { class: "checkin" }, [el("span", { class: "when", text: shortDate(e.day) }), el("div", { class: "what" }, [
+          el("div", {}, [el("b", { text: "報平安 " + (e.mood || "") })]),
+          e.note ? el("p", { class: "note", text: e.note }) : null
+        ])]));
+        return;
+      }
       if (e._claim) {
         var ct = { pending: "等確認", rejected: "沒有兌換" }[e.status];
         log.appendChild(el("li", { class: "claim" }, [el("span", { class: "when", text: shortDate(e.day) }), el("div", { class: "what" }, [
@@ -766,6 +780,70 @@
     kids.push(el("div", { class: "row" }, [el("button", { class: "btn primary", text: "收下", onclick: closeSheet })]));
     openPanel(kids);
     sheetOnClose = function () { setSeen(maxTs); };
+  }
+  // ---------- 每日報平安 ----------
+  var MOODS = ["😊", "🥰", "😴", "😢", "😤", "🤒"];
+  function checkinOf(p, day) { return p ? checkins.filter(function (c) { return c.user_id === p.id && c.day === day; })[0] : null; }
+  function myCheckin() { return checkinOf(me, localDay(me.tz)); }
+  // 連續天數：兩個人同一天（各自當地日期）都有報平安才算；今天還沒完成不會中斷，從昨天往回數
+  function streak() {
+    if (!partner) return 0;
+    var has = function (p, k) { return checkins.some(function (c) { return c.user_id === p.id && c.day === k; }); };
+    var d = parseDay(localDay(me.tz)), n = 0;
+    if (!(has(me, dateKey(d)) && has(partner, dateKey(d)))) d.setDate(d.getDate() - 1);
+    while (has(me, dateKey(d)) && has(partner, dateKey(d))) { n++; d.setDate(d.getDate() - 1); }
+    return n;
+  }
+  function checkinLine() {
+    var n = streak(), a = myCheckin(), b = checkinOf(partner, localDay(partner.tz));
+    var who = function (p, c) { return el("span", { class: "ck" + (c ? " ok" : "") }, [nick(p) + " " + (c ? (c.mood || "✓") : "…")]); };
+    checkStreakCard(n);
+    return el("button", { class: "checkline", onclick: function () { if (!a) openCheckin(); else if (b) toast(nick(partner) + "：" + (b.note || "今天平安")); else toast(nick(partner) + "今天還沒報平安"); } }, [
+      el("span", { class: "streak", text: n ? "🔥 連續 " + n + " 天" : "今天報平安了嗎" }),
+      who(me, a), who(partner, b)
+    ]);
+  }
+  function openCheckin() {
+    var done = myCheckin();
+    if (done) { toast("今天已經報過平安了 " + (done.mood || "")); return; }
+    var mood = "";
+    var row = el("div", { class: "moods" }, MOODS.map(function (m) {
+      var b = el("button", { class: "mood", text: m, onclick: function () { mood = m; [].forEach.call(row.children, function (c) { c.classList.toggle("on", c === b); }); } });
+      return b;
+    }));
+    var note = el("input", { type: "text", id: "checkin-note", placeholder: "想說的話，例如：平安到家了（可留空）", maxlength: "60" });
+    openPanel([
+      el("h2", { text: "報平安" }),
+      el("p", { class: "legend", text: "今天過得怎麼樣？讓" + nick(partner) + "知道你平安。" }),
+      row, note,
+      el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "取消", onclick: closeSheet }),
+        el("button", { class: "btn primary", text: "送出", onclick: function () {
+          var row2 = { couple_id: couple.id, user_id: me.id, day: localDay(me.tz), mood: mood, note: note.value.trim(), ts: Date.now() };
+          closeSheet();
+          act(function () { return sb.from("cg_checkins").insert(row2); }, "已報平安" + (mood ? " " + mood : ""));
+        } })
+      ])
+    ]);
+  }
+  // 連續報平安的慶祝卡：7、30、100、200、365 天各一次
+  function checkStreakCard(n) {
+    var marks = [7, 30, 100, 200, 365], hit = marks.filter(function (m) { return n >= m; }).pop();
+    if (!hit) return;
+    var k = "cg-streak-" + me.id;
+    if (+(lsGet(k) || 0) >= hit) return;
+    lsSet(k, hit);
+    setTimeout(function () {
+      glowOrb(false);
+      queueCard(function () {
+        openPanel([
+          el("div", { class: "introicon", text: "🔥" }),
+          el("h2", { text: "連續報平安 " + hit + " 天" }),
+          el("p", { class: "legend", style: "font-size:15px;line-height:1.7;color:var(--ink-soft)", text: "你們已經連續 " + hit + " 天，每天都讓對方知道自己平安。這是很溫柔的習慣。" }),
+          el("div", { class: "row" }, [el("button", { class: "btn primary", text: "繼續保持", onclick: closeSheet })])
+        ]);
+      });
+    }, 1800);
   }
   function showMilestone(ms) {
     openPanel([
@@ -1076,6 +1154,7 @@
         el("span", {}, ["本週 ", el("b", { text: String(g.week) }), " 朵"]),
         el("span", { class: "blk" }, ["小黑花 ", el("b", { text: String(g.blacks.length) }), " 朵"])
       ]),
+      partner ? checkinLine() : null,
       tzLine ? el("p", { class: "caption", text: tzLine }) : null,
       !partner ? el("div", { class: "invite" }, [
         el("p", { class: "invite-t", text: "還差一步：邀請另一半加入" }),
@@ -1100,6 +1179,11 @@
         openInput("送" + nick(partner) + "一朵花", "這朵花的意義，例如：謝謝你今天陪我", "送出", giveFlower, true);
       } }, [el("span", { class: "name", text: "送" + (partner ? nick(partner) : "對方") + "一朵花" }), el("span", { class: "state", text: "直接種進對方的瓶子" })]));
     }
+    var ck = myCheckin();
+    if (mineView) page1.insertBefore(el("button", { class: "mbtn wide" + (ck ? " done" : ""), onclick: function () {
+      if (!partner) { toast("等對方加入後才能報平安"); return; }
+      openCheckin();
+    } }, [el("span", { class: "name", text: ck ? "已報平安 " + (ck.mood || "✓") : "報平安" }), el("span", { class: "state", text: ck ? "明天再來" : "今天過得好嗎" })]), page1.firstChild);
     page1.appendChild(el("button", { class: "mbtn wide blackbtn", onclick: function () {
       if (!partner) { toast("等對方加入後才能給"); return; }
       openInput("給" + nick(partner) + "一朵小黑花", "原因，例如：又熬夜不睡", "給", giveBlack, true);
