@@ -182,7 +182,7 @@
     var hF = Math.max(o.ry * 0.34, Math.min(o.ry * 0.6, o.ry * 0.6 * Math.sqrt(10 / Math.max(n, 10))));
     var S0 = o.ry * 0.62 * Math.max(0.6, Math.min(1, Math.sqrt(14 / Math.max(n, 14))));
     var M = 40, items = [], bloomIdx = 0, seedOff = owner && partner && owner.id === partner.id ? 500 : 0;
-    var color = owner && owner.color === "blue" ? "blue" : "red";
+    var color = gardenColor(owner);
     list.forEach(function (d, i) {
       var k = i % M, wrap = Math.floor(i / M);
       var it = { i: i, d: d, r: (0.4 + 0.6 * Math.sqrt((k + 0.5) / M)) * (wrap ? 0.92 : 1),   // 中間留給小精靈
@@ -407,6 +407,14 @@
   }
   function reqsToday() { var d = today(); return entries.filter(function (e) { return e.kind === "request" && e.owner === me.id && e.day === d; }); }
   function viewOwner() { return view === "me" ? me : partner; }
+  // 一對情侶兩種花色：花的顏色 = 送花那個人選的顏色。兩人選一樣時，id 比較大的那位自動換成另一色
+  function giverColor(p) {
+    if (!p) return "red";
+    var o = p === me ? partner : me, c = p.color === "blue" ? "blue" : "red";
+    if (o && (o.color === "blue" ? "blue" : "red") === c && p.id > o.id) c = c === "red" ? "blue" : "red";
+    return c;
+  }
+  function gardenColor(owner) { return giverColor(owner === me ? partner : me); }
   function taskName(e) {
     if (e.kind === "gift") return "送的花";
     if (e.kind === "request") return "申請的花";
@@ -512,7 +520,7 @@
       : e.kind === "gift" ? nick(by) + "送給" + nick(owner)
       : e.kind === "request" ? nick(owner) + "申請，" + nick(owner === me ? partner : me) + "確認"
       : nick(owner) + "完成「" + taskName(e) + "」";
-    var col = black ? "black" : (owner && owner.color === "blue" ? "blue" : "red");
+    var col = black ? "black" : gardenColor(owner);
     var bloom = el("div", { class: "fc-bloom " + col, "aria-hidden": "true" });
     var card = el("div", { class: "fcard" + (black ? " black" : "") }, [
       bloom,
@@ -579,28 +587,16 @@
     list.forEach(function (e) {
       var t = tagText[e.status];
       var tag = t ? el("span", { class: "tag" + (e.status === "pending" || e.status === "appeal" ? "" : " no"), text: t }) : null;
-      log.appendChild(el("li", {}, [el("span", { class: "when", text: shortDate(e.day) }), el("div", { class: "what" }, [
+      log.appendChild(el("li", { class: e.kind === "black" ? "black" : "" }, [el("span", { class: "when", text: shortDate(e.day) }), el("div", { class: "what" }, [
         el("div", {}, [el("b", { text: taskName(e) }), tag]),
         e.note ? el("p", { class: "note", text: nick(byId(e.created_by)) + "：" + e.note }) : null,
-        e.reply ? el("p", { class: "reply", text: (e.kind === "black" ? nick(byId(e.owner)) + "（申訴）" : nick(e.created_by === me.id ? partner : me)) + "：" + e.reply }) : null
+        e.reply ? el("p", { class: "reply", text: (e.kind === "black" ? nick(byId(e.owner)) + "（申訴）" : nick(e.created_by === me.id ? partner : me)) + "：" + e.reply }) : null,
+        e.kind === "black" && blackActions(e).length ? el("div", { class: "row" }, blackActions(e)) : null
       ])]));
     });
     openPanel([el("h2", { text: nick(owner) + "的紀錄" }), log, el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })])]);
   }
-  function openBlacks() {
-    var list = garden(me).blacks.slice().reverse();
-    var kids = [el("h2", { text: "我的小黑花 " + list.length + " 朵" })];
-    if (!list.length) kids.push(el("p", { class: "legend", text: "目前沒有小黑花，很乖。" }));
-    list.forEach(function (e) {
-      kids.push(el("div", { class: "pitem black" }, [
-        el("div", { class: "who", text: shortDate(e.day) + (e.status === "appeal" ? "・申訴中" : "") }),
-        el("p", { class: "quote", text: nick(partner) + "：" + e.note }),
-        el("div", { class: "row" }, blackActions(e))
-      ]));
-    });
-    kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })]));
-    openPanel(kids);
-  }
+
   function showNewCard(list, maxTs) {
     var nb = list.filter(function (e) { return e.kind === "black"; }).length, nf = list.length - nb;
     var kids = [el("h2", { text: nb && nf ? "你收到 " + nf + " 朵花、" + nb + " 朵小黑花" : nb ? nick(partner) + "給你 " + nb + " 朵小黑花" : "有 " + nf + " 朵新花開了" })];
@@ -680,13 +676,13 @@
     var tzSel = el("select", { id: "set-tz" }, TZS.map(function (z) { return el("option", { value: z[0], text: z[1] }); }));
     if (!TZS.some(function (z) { return z[0] === me.tz; })) tzSel.appendChild(el("option", { value: me.tz, text: me.tz }));
     tzSel.value = me.tz;
-    var colorSel = el("select", { id: "set-color" }, [el("option", { value: "red", text: "小紅花" }), el("option", { value: "blue", text: "小藍花" })]);
-    colorSel.value = me.color || "red";
+    var colorSel = el("select", { id: "set-color" }, [el("option", { value: "red", text: "紅色" }), el("option", { value: "blue", text: "藍色" })]);
+    colorSel.value = giverColor(me);
     var kids = [
       el("h2", { text: "設定" }),
       el("label", { class: "field" }, [el("span", { text: "我的暱稱" }), nickIn]),
       el("label", { class: "field" }, [el("span", { text: "我在哪個時區" }), tzSel]),
-      el("label", { class: "field" }, [el("span", { text: "我的花" }), colorSel]),
+      el("label", { class: "field" }, [el("span", { text: "我送出的花色" }), colorSel]),
       el("div", { class: "row" }, [el("button", { class: "btn primary", text: "儲存", onclick: function () {
         var patch = { nickname: nickIn.value.trim() || me.nickname, tz: tzSel.value, color: colorSel.value };
         closeSheet(); act(function () { return sb.from("cg_profiles").update(patch).eq("id", me.id); }, "已儲存");
@@ -857,9 +853,9 @@
     var tabs = el("div", { class: "gtabs", role: "tablist" }, [["me", me], ["partner", partner]].map(function (pair) {
       var key = pair[0], p = pair[1];
       var dot = key === "partner" && pend.length ? el("span", { class: "gdot amber" }) : null;
-      return el("button", { class: "gtab" + (view === key ? " on" : "") + (p && p.color === "blue" ? " blue" : ""), role: "tab", "aria-selected": view === key ? "true" : "false", disabled: p ? false : "", onclick: function () { switchView(key); } }, [p ? nick(p) : "等待加入", dot]);
+      return el("button", { class: "gtab" + (view === key ? " on" : "") + (p && gardenColor(p) === "blue" ? " blue" : ""), role: "tab", "aria-selected": view === key ? "true" : "false", disabled: p ? false : "", onclick: function () { switchView(key); } }, [p ? nick(p) : "等待加入", dot]);
     }));
-    var unit = owner && owner.color === "blue" ? "朵小藍花" : "朵小紅花";
+    var unit = owner && gardenColor(owner) === "blue" ? "朵小藍花" : "朵小紅花";
     var bn = bigNum(), numEl = bn.querySelector(".bn-num");
     bn.querySelector(".bn-unit").textContent = unit;
     numEl.textContent = String(g.count);
@@ -887,27 +883,22 @@
         if (!partner) { toast("等對方加入後才能申請"); return; }
         if (leftReq <= 0) { toast("今天已經申請 " + REQ_PER_DAY + " 次了，明天再來"); return; }
         openInput("申請一朵花", "這朵花的意義，例如：今天有好好吃三餐", "送出申請", requestFlower, true);
-      } }, [el("span", { class: "name", text: "申請一朵花" }), el("span", { class: "state", text: partner ? "寫下這朵花的意義，" + nick(partner) + "確認後就會種下" : "等對方加入後就能申請" })]));
+      } }, [el("span", { class: "name", text: "申請一朵花" }), el("span", { class: "state", text: partner ? nick(partner) + "確認後種下" : "等對方加入" })]));
     } else {
       page1.appendChild(el("button", { class: "mbtn wide", onclick: function () {
         if (!partner) return;
         openInput("送" + nick(partner) + "一朵花", "這朵花的意義，例如：謝謝你今天陪我", "送出", giveFlower, true);
-      } }, [el("span", { class: "name", text: "送" + (partner ? nick(partner) : "對方") + "一朵花" }), el("span", { class: "state", text: "寫下這朵花的意義，直接種進對方的魚缸" })]));
+      } }, [el("span", { class: "name", text: "送" + (partner ? nick(partner) : "對方") + "一朵花" }), el("span", { class: "state", text: "直接種進對方的瓶子" })]));
     }
+    page1.appendChild(el("button", { class: "mbtn wide blackbtn", onclick: function () {
+      if (!partner) { toast("等對方加入後才能給"); return; }
+      openInput("給" + nick(partner) + "一朵小黑花", "原因，例如：又熬夜不睡", "給", giveBlack, true);
+    } }, [el("span", { class: "name", text: "給" + (partner ? nick(partner) : "對方") + "小黑花" }), el("span", { class: "state", text: "對方可以申訴或用花贖回" })]));
 
     // 第二頁：互動
     var ico = function (d) { return svg("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.6", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, [svg("path", { d: d })]); };
     var page2 = el("div", { class: "page" });
     page2.appendChild(el("button", { class: "tab", onclick: openPending }, [ico("M5 12.5l4.5 4.5L19 7.5"), "待處理", pend.length ? el("span", { class: "badge", text: String(pend.length) }) : null]));
-    if (mineView) {
-      page2.appendChild(el("button", { class: "tab", onclick: openBlacks }, [ico("M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16"), "小黑花"]));
-      page2.appendChild(el("button", { class: "tab", onclick: function () {
-        if (!partner) { toast("等對方加入後才能給"); return; }
-        openInput("給" + nick(partner) + "一朵小黑花", "原因，例如：又熬夜不睡", "給", giveBlack, true);
-      } }, [ico("M12 7v5M12 16h.01M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16"), "給小黑花"]));
-    } else {
-      page2.appendChild(el("button", { class: "tab", onclick: function () { openInput("給" + nick(partner) + "一朵小黑花", "原因，例如：又熬夜不睡", "給", giveBlack, true); } }, [ico("M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16"), "給小黑花"]));
-    }
     page2.appendChild(el("button", { class: "tab", onclick: sendMiss }, [ico("M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"), "想你"]));
     page2.appendChild(el("button", { class: "tab", onclick: openRecords }, [ico("M8 6.5h11M8 12h11M8 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"), "紀錄"]));
 
