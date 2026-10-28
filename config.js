@@ -1,5 +1,7 @@
 // Supabase 專案設定（Project Settings > API Keys）。publishable / anon key 本來就是公開的，不是密碼。
 window.GARDEN_CONFIG = {
   SUPABASE_URL: "https://rcbxmdfzuwqvvtgcfkjf.supabase.co",
-  SUPABASE_KEY: "sb_publishable_6aLyRg1UY5rYSH7mivnmSQ_blV6yDCm"
+  SUPABASE_KEY: "sb_publishable_6aLyRg1UY5rYSH7mivnmSQ_blV6yDCm",
+  // 推播的公開金鑰（公開的那一半，可以放這裡；私鑰只放在 Supabase）
+  VAPID_PUBLIC_KEY: "BP2R8G3vve-WYV3h5iA1Pw0NfFUhpdoVoHmsYpLoLinq093V7_TBNN_8i6YgxsxgCvxgLZma3bBCyoS6xJvESwo"
 };
