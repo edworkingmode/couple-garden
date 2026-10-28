@@ -470,22 +470,56 @@
   }
 
   // ---------- 面板：花、待處理、紀錄 ----------
+  // 新手導覽：每一步說明一個功能，並把下方工具列切到那一頁（page：0 天數、1 種花、2 互動、3 我們）
   var INTRO = [
-    ["每一朵花，都有它的意義", "做了一件想讓對方知道的事，就到「種花」頁申請一朵，寫下這朵花的意義。"],
-    ["對方確認，花才會種下", "申請會出現在對方的「待處理」。對方確認後，花就會從瓶口落下，長在你的苔蘚上。"],
-    ["點開每一朵花", "點瓶子裡的一朵花，就能看到那天寫下的話。也可以互相給小黑花、按「想你」、用花兌換獎勵。"]
+    { icon: "🌱", t: "歡迎來到你們的花園", d: "這是兩個人一起照顧的瓶子。每當對方為你做了一件事、或你做到一件想讓對方知道的事，就種下一朵花，寫下它的意義。花會一朵一朵長滿瓶子，變成你們的回憶。" },
+    { icon: "🌹", t: "申請一朵花", page: 1, d: "下方工具列往左滑到「種花」頁，按「申請一朵花」，寫下這朵花的意義，例如「今天有好好吃三餐」。一天最多申請 3 次。" },
+    { icon: "✅", t: "對方確認，花才會種下", page: 2, d: "你的申請會出現在對方「互動」頁的「待處理」。對方確認後，花就會從瓶口落下，長在你的苔蘚上。對方的申請也會出現在你的待處理，記得也幫對方確認。" },
+    { icon: "💐", t: "主動送花", d: "點最上面對方的名字，切到對方的瓶子，在「種花」頁按「送一朵花」，不用確認，直接種進對方的瓶子。你送的花是你選的顏色，可以在設定裡換。" },
+    { icon: "🖤", t: "小黑花", page: 1, d: "對方做了不太好的事（例如又熬夜），可以在「種花」頁給一朵小黑花。收到的人可以申訴一次，或用 3 朵花把它贖回。" },
+    { icon: "🎁", t: "用花換獎勵", page: 2, d: "在「互動」頁的「獎勵」，你可以幫對方開獎勵，例如「20 朵：見面請你吃大餐」。對方的花夠了就能兌換，你確認後成立。兌換不會讓瓶子裡的花變少。" },
+    { icon: "📖", t: "花花圖書館", page: 2, d: "「互動」頁的「圖書館」依月份收著每一朵花和它的話。點瓶子裡的任何一朵花，也能看到那天寫下的內容。" },
+    { icon: "📅", t: "天數與紀念日", page: 0, d: "最左邊的「天數」頁會顯示見面倒數、在一起幾天。到「我們」頁的「紀念日」填日期、新增生日或交往紀念日，也能自己選要顯示哪幾個。" },
+    { icon: "🫧", t: "小精靈、想你、通知", page: 2, d: "瓶子中間的苔蘚小精靈放著會睡著，點牠就會醒來。想對方時按「想你」，對方的瓶子會亮一下。iPhone 把網站「加入主畫面」後，到「我們 → 設定」開啟通知，就不會錯過對方的花。" }
   ];
+  function introPage(n) {
+    var pages = document.querySelector(".dock .pages");
+    if (pages && n != null) pages.scrollTo({ left: n * pages.clientWidth, behavior: "smooth" });
+  }
   function showIntro(i) {
-    var last = i === INTRO.length - 1;
+    var last = i === INTRO.length - 1, st = INTRO[i];
+    introPage(st.page);
     openPanel([
-      el("p", { class: "eyebrow", text: (i + 1) + " / " + INTRO.length }),
-      el("h2", { text: INTRO[i][0] }),
-      el("p", { class: "legend", style: "font-size:15px;line-height:1.7;color:var(--ink-soft)", text: INTRO[i][1] }),
+      el("div", { class: "introbar" }, INTRO.map(function (_, k) { return el("span", { class: k <= i ? "on" : "" }); })),
+      el("div", { class: "introicon", text: st.icon }),
+      el("h2", { text: st.t }),
+      el("p", { class: "legend", style: "font-size:15px;line-height:1.75;color:var(--ink-soft)", text: st.d }),
       el("div", { class: "row" }, [
-        last ? null : el("button", { class: "btn ghost", text: "跳過", onclick: closeSheet }),
-        el("button", { class: "btn primary", text: last ? "開始種花" : "下一步", onclick: function () { if (last) closeSheet(); else showIntro(i + 1); } })
+        i > 0 ? el("button", { class: "btn ghost", text: "上一步", onclick: function () { showIntro(i - 1); } }) : el("button", { class: "btn ghost", text: "跳過", onclick: closeSheet }),
+        el("button", { class: "btn primary", text: last ? "開始種花" : "下一步（" + (i + 2) + "/" + INTRO.length + "）", onclick: function () { if (last) { closeSheet(); introPage(1); } else showIntro(i + 1); } })
       ])
     ]);
+  }
+  // 登入前：這是什麼、怎麼開始
+  function openAbout() {
+    var steps = [
+      ["註冊", "兩個人各自用 Email 註冊一個帳號。"],
+      ["配對", "其中一人建立花園，把 6 碼邀請碼傳給另一半；另一半輸入邀請碼加入。"],
+      ["種花", "做到一件想讓對方知道的事，就申請一朵花、寫下它的意義；對方確認後花就種進你的瓶子。也可以直接送花給對方。"],
+      ["累積回憶", "花會一朵朵長滿瓶子，收進花花圖書館，還能用來換對方開的獎勵。"]
+    ];
+    openPanel([
+      el("h2", { text: "情侶花園是什麼？" }),
+      el("p", { class: "legend", style: "font-size:15px;line-height:1.7;color:var(--ink-soft)", text: "給兩個人一起用的小儀式，特別適合遠距離情侶。每一朵花，都是對方為你做的一件事。" }),
+      el("ol", { class: "steps" }, steps.map(function (x) { return el("li", {}, [el("b", { text: x[0] }), el("span", { text: x[1] })]); })),
+      el("div", { class: "row" }, [el("button", { class: "btn primary", text: "知道了", onclick: closeSheet })])
+    ]);
+  }
+  // 分享邀請碼
+  function shareCode() {
+    var text = "來跟我一起種花吧！打開 " + location.origin + location.pathname + " 註冊後，輸入邀請碼：" + couple.invite_code;
+    if (navigator.share) { navigator.share({ text: text }).catch(function () {}); return; }
+    try { navigator.clipboard.writeText(text).then(function () { toast("已複製邀請訊息，貼給對方吧"); }); } catch (e) { toast("邀請碼：" + couple.invite_code); }
   }
   // ---------- 推播通知 ----------
   var swReg = null;
@@ -859,6 +893,7 @@
     kids.push(el("h3", { text: "通知" }));
     kids.push(el("p", { class: "legend", text: pushHint() }));
     if (pushReady()) kids.push(el("button", { class: "btn", text: Notification.permission === "granted" ? "重新開啟這支手機的通知" : "開啟通知", onclick: enablePush }));
+    kids.push(el("button", { class: "btn", text: "📖 使用說明（重看新手導覽）", onclick: function () { closeSheet(); setTimeout(function () { showIntro(0); }, 200); } }));
     kids.push(el("h3", { text: "我們的花園" }));
     kids.push(el("p", { class: "legend", text: "邀請碼：" + (couple ? couple.invite_code : "") + (partner ? "（已配對）" : "（把這組碼給對方）") }));
     kids.push(el("div", { class: "row" }, [
@@ -913,6 +948,7 @@
       el("p", { class: "eyebrow", text: "COUPLE GARDEN" }),
       el("h1", { class: "auth-title", text: "情侶花園" }),
       el("p", { class: "legend", text: "把彼此照顧好，瓶子裡就會長出花。" }),
+      el("button", { class: "linkbtn", text: "這是什麼？怎麼開始？", onclick: openAbout }),
       mode === "up" ? nickIn : null, email, pass, submit,
       el("button", { class: "linkbtn", text: mode === "up" ? "已經有帳號？登入" : "第一次來？註冊", onclick: function () { renderAuth(mode === "up" ? "in" : "up"); } })
     ]));
@@ -949,7 +985,11 @@
     ui.appendChild(el("div", { class: "auth" }, [
       el("p", { class: "eyebrow", text: "嗨，" + nick(me) }),
       el("h1", { class: "auth-title", text: "跟另一半配對" }),
-      el("p", { class: "legend", text: "一個人建立花園，把邀請碼傳給對方；另一個人輸入邀請碼加入。" }),
+      el("ol", { class: "steps" }, [
+        el("li", {}, [el("b", { text: "先到的人" }), el("span", { text: "按「建立我們的花園」，會拿到 6 碼邀請碼，傳給另一半。" })]),
+        el("li", {}, [el("b", { text: "另一半" }), el("span", { text: "用自己的 Email 註冊後，在下面輸入邀請碼加入。" })]),
+        el("li", {}, [el("b", { text: "完成" }), el("span", { text: "兩人進到同一個花園，就能開始互相種花。" })])
+      ]),
       el("button", { class: "btn primary wideb", text: "建立我們的花園", onclick: function () {
         act(function () { return sb.rpc("cg_create_couple"); }, "花園建好了，把邀請碼傳給對方");
       } }),
@@ -1037,7 +1077,12 @@
         el("span", { class: "blk" }, ["小黑花 ", el("b", { text: String(g.blacks.length) }), " 朵"])
       ]),
       tzLine ? el("p", { class: "caption", text: tzLine }) : null,
-      !partner ? el("p", { class: "caption", text: "邀請碼 " + couple.invite_code + "，傳給對方就能配對" }) : null
+      !partner ? el("div", { class: "invite" }, [
+        el("p", { class: "invite-t", text: "還差一步：邀請另一半加入" }),
+        el("p", { class: "invite-code", text: couple.invite_code }),
+        el("p", { class: "invite-d", text: "對方註冊後輸入這組邀請碼，就會跟你在同一個花園。" }),
+        el("button", { class: "btn primary", text: "傳邀請給對方", onclick: shareCode })
+      ]) : null
     ]));
 
     // 工具列第二頁：種一朵花。沒有固定任務，每一朵都由兩人寫下它的意義
