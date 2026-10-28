@@ -16,8 +16,8 @@
   ];
   var ATLAS = { red: "", blue: " blue", black: " black" };
   var ASSETS = {
-    full: { video: "bg.mp4", start: "bg-start.jpg", end: "bg-end.jpg", w: 1920, h: 1086, orb: { cx: 0.506, cy: 0.718, rx: 0.1413, ry: 0.2356 } },
-    mobile: { video: "bg-m.mp4", start: "bg-m-start.jpg", end: "bg-m-end.jpg", w: 1440, h: 1464, orb: { cx: 0.5, cy: 0.5833, rx: 0.3757, ry: 0.3484 } }
+    full: { video: "bg-loop.mp4", front: "front.webp", start: "bg-start.jpg", end: "bg-end.jpg", w: 1920, h: 1086, orb: { cx: 0.506, cy: 0.718, rx: 0.1413, ry: 0.2356 } },
+    mobile: { video: "bg-m-loop.mp4", front: "front-m.webp", start: "bg-m-start.jpg", end: "bg-m-end.jpg", w: 1440, h: 1464, orb: { cx: 0.5, cy: 0.5833, rx: 0.3757, ry: 0.3484 } }
   };
   var ASSET = (window.innerWidth <= 700 && window.innerHeight > window.innerWidth) ? ASSETS.mobile : ASSETS.full;
   var VID = { w: ASSET.w, h: ASSET.h }, ORB = ASSET.orb;
@@ -178,6 +178,7 @@
     var bx = o.cx, by = o.cy + 0.44 * o.ry, hw = 0.82 * o.rx, hh = 0.34 * o.ry;
     if (!n) {
       layer.appendChild(el("div", { class: "orb-hint", style: "left:" + o.cx + "px;top:" + (o.cy + 0.2 * o.ry) + "px", text: "第一朵花，等著被種下" }));
+      addFront(layer, o);
       return;
     }
     var hF = Math.max(o.ry * 0.34, Math.min(o.ry * 0.6, o.ry * 0.6 * Math.sqrt(10 / Math.max(n, 10))));
@@ -203,6 +204,14 @@
       })(it.d, it.i + 1, f);
       layer.appendChild(f);
     });
+    addFront(layer, o);
+  }
+  // 前排青苔遮罩：花長在青苔裡，而不是貼在畫面上
+  function addFront(layer, o) {
+    var img = el("img", { class: "orb-front", src: ASSET.front, alt: "", "aria-hidden": "true" });
+    img.style.left = (o.cx - o.rx) + "px"; img.style.top = (o.cy - o.ry) + "px";
+    img.style.width = (o.rx * 2) + "px"; img.style.height = (o.ry * 2) + "px";
+    layer.appendChild(img);
   }
   function glowOrb(black) {
     var o = orbGeom(), n = el("div", { class: "orb-glow" + (black ? " blue" : "") });
@@ -776,7 +785,7 @@
     var v = document.getElementById("bg"), still = document.getElementById("still"), stage = document.getElementById("stage");
     if (ASSET === ASSETS.full) stage.classList.add("desk");
     layoutVideo();
-    v.muted = true; v.defaultMuted = true;
+    v.muted = true; v.defaultMuted = true; v.loop = true;
     v.poster = ASSET.start;
     still.addEventListener("error", function () { stage.classList.add("novideo"); });
     still.src = ASSET.end;
