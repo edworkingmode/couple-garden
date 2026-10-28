@@ -493,24 +493,8 @@
       el("div", { class: "row" }, [el("button", { class: "btn primary", text: "儲存", onclick: function () {
         var patch = { nickname: nickIn.value.trim() || me.nickname, tz: tzSel.value, color: colorSel.value };
         closeSheet(); act(function () { return sb.from("cg_profiles").update(patch).eq("id", me.id); }, "已儲存");
-      } })]),
-      el("h3", { text: "每日任務" })
+      } })])
     ];
-    [me, partner].forEach(function (p) {
-      if (!p) return;
-      var mineTasks = tasks.filter(function (t) { return t.doer === p.id && t.active; });
-      kids.push(el("p", { class: "legend", text: nick(p) + "要做的（" + nick(p === me ? partner : me) + "確認）" }));
-      if (!mineTasks.length) kids.push(el("p", { class: "legend", text: "還沒有任務。" }));
-      mineTasks.forEach(function (t) {
-        kids.push(el("div", { class: "taskrow" }, [
-          el("span", { text: t.title + "・一天 " + t.per_day + " 次" }),
-          el("button", { class: "btn ghost", style: "min-height:32px;padding:4px 10px;font-size:13px", text: "移除", onclick: function () {
-            confirmPanel("移除「" + t.title + "」？", "已經得到的花會保留。", "移除", function () { act(function () { return sb.from("cg_tasks").update({ active: false }).eq("id", t.id); }, "已移除"); });
-          } })
-        ]));
-      });
-      kids.push(el("button", { class: "btn", text: "幫" + nick(p) + "新增任務", onclick: function () { openAddTask(p); } }));
-    });
     kids.push(el("h3", { text: "我們的花園" }));
     kids.push(el("p", { class: "legend", text: "邀請碼：" + (couple ? couple.invite_code : "") + (partner ? "（已配對）" : "（把這組碼給對方）") }));
     kids.push(el("div", { class: "row" }, [
@@ -693,40 +677,29 @@
       !partner ? el("p", { class: "caption", text: "邀請碼 " + couple.invite_code + "，傳給對方就能配對" }) : null
     ]));
 
-    // 工具列第一頁：被看的這個人的任務
+    // 工具列第二頁：種一朵花。沒有固定任務，每一朵都由兩人寫下它的意義
     var page1 = el("div", { class: "page" });
-    var ownTasks = tasks.filter(function (t) { return owner && t.doer === owner.id && t.active; });
-    if (!ownTasks.length) {
-      page1.appendChild(el("button", { class: "mbtn wide", onclick: function () { if (owner) openAddTask(owner); } }, [el("span", { class: "name", text: "新增任務" }), el("span", { class: "state", text: mineView ? "設定你每天要做的事" : "幫" + nick(partner) + "設定任務" })]));
+    if (mineView) {
+      var leftReq = REQ_PER_DAY - reqsToday().length;
+      page1.appendChild(el("button", { class: "mbtn wide", onclick: function () {
+        if (!partner) { toast("等對方加入後才能申請"); return; }
+        if (leftReq <= 0) { toast("今天已經申請 " + REQ_PER_DAY + " 次了，明天再來"); return; }
+        openInput("申請一朵花", "這朵花的意義，例如：今天有好好吃三餐", "送出申請", requestFlower, true);
+      } }, [el("span", { class: "name", text: "申請一朵花" }), el("span", { class: "state", text: partner ? "寫下這朵花的意義，" + nick(partner) + "確認後就會種下" : "等對方加入後就能申請" })]));
+    } else {
+      page1.appendChild(el("button", { class: "mbtn wide", onclick: function () {
+        if (!partner) return;
+        openInput("送" + nick(partner) + "一朵花", "這朵花的意義，例如：謝謝你今天陪我", "送出", giveFlower, true);
+      } }, [el("span", { class: "name", text: "送" + (partner ? nick(partner) : "對方") + "一朵花" }), el("span", { class: "state", text: "寫下這朵花的意義，直接種進對方的魚缸" })]));
     }
-    ownTasks.slice(0, 4).forEach(function (t) {
-      var got = taskToday(t), done = got.filter(function (e) { return e.status === "confirmed"; }).length, wait = got.filter(function (e) { return e.status === "pending"; }).length;
-      var full = got.length >= t.per_day;
-      var cls = "mbtn" + (full ? (wait ? " pending" : " done") : "");
-      var state = full ? (wait ? "等確認" : "完成") : (t.per_day > 1 ? (done + wait) + "/" + t.per_day : (mineView ? "我做到了" : "代記"));
-      var b = el("button", { class: cls, onclick: function () {
-        if (full) return;
-        if (mineView) openInput("完成「" + t.title + "」了嗎？", "想跟" + nick(partner) + "說什麼？（可留空）", "送出", function (v) { claimTask(t, v); });
-        else openInput("幫" + nick(partner) + "記上「" + t.title + "」", "備註（可留空）", "記上一朵", function (v) { claimTask(t, v); });
-      } }, [el("span", { class: "name", text: t.title }), el("span", { class: "state", text: state })]);
-      if (full) b.setAttribute("disabled", "");
-      page1.appendChild(b);
-    });
 
     // 第二頁：互動
     var ico = function (d) { return svg("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.6", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, [svg("path", { d: d })]); };
     var page2 = el("div", { class: "page" });
     page2.appendChild(el("button", { class: "tab", onclick: openPending }, [ico("M5 12.5l4.5 4.5L19 7.5"), "待處理", pend.length ? el("span", { class: "badge", text: String(pend.length) }) : null]));
     if (mineView) {
-      var left2 = REQ_PER_DAY - reqsToday().length;
-      page2.appendChild(el("button", { class: "tab", onclick: function () {
-        if (!partner) { toast("等對方加入後才能申請"); return; }
-        if (left2 <= 0) { toast("今天已經申請 " + REQ_PER_DAY + " 次了，明天再來"); return; }
-        openInput("申請一朵花", "寫下想讓" + nick(partner) + "知道的事", "送出申請", requestFlower, true);
-      } }, [ico("M12 3.5l2.4 5.3 5.6.6-4.2 3.8 1.2 5.6L12 15.9 7 18.8l1.2-5.6L4 9.4l5.6-.6z"), "申請一朵"]));
       page2.appendChild(el("button", { class: "tab", onclick: openBlacks }, [ico("M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16"), "小黑花"]));
     } else {
-      page2.appendChild(el("button", { class: "tab", onclick: function () { openInput("送" + nick(partner) + "一朵花", "原因，例如：謝謝你今天陪我", "送出", giveFlower, true); } }, [ico("M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"), "送一朵"]));
       page2.appendChild(el("button", { class: "tab", onclick: function () { openInput("給" + nick(partner) + "一朵小黑花", "原因，例如：又熬夜不睡", "給", giveBlack, true); } }, [ico("M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16"), "給小黑花"]));
     }
     page2.appendChild(el("button", { class: "tab", onclick: openRecords }, [ico("M8 6.5h11M8 12h11M8 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"), "紀錄"]));
@@ -740,7 +713,7 @@
     var pages = el("div", { class: "pages" }, [page0, page1, page2, page3]);
     var dots = el("div", { class: "dots2" });
     var dotEls = [0, 1, 2, 3].map(function (n) {
-      var d = el("button", { class: "dot2" + (n === dockPage ? " on" : "") + (n === 2 && pend.length ? " alert" : ""), "aria-label": ["天數", "任務", "互動", "我們"][n], onclick: function () { pages.scrollTo({ left: n * pages.clientWidth, behavior: "smooth" }); } });
+      var d = el("button", { class: "dot2" + (n === dockPage ? " on" : "") + (n === 2 && pend.length ? " alert" : ""), "aria-label": ["天數", "種花", "互動", "我們"][n], onclick: function () { pages.scrollTo({ left: n * pages.clientWidth, behavior: "smooth" }); } });
       dots.appendChild(d); return d;
     });
     pages.addEventListener("scroll", function () {
