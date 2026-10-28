@@ -229,14 +229,15 @@
     var p = el("div", { class: "pet", role: "button", "aria-label": "苔蘚小精靈" });
     p.style.width = W + "px"; p.style.height = H + "px";
     var footY = by + (o.ry * 0.26) * 0.45;   // 坐在苔蘚前半部，大部分的花在牠後面
-    p.style.left = (bx - W / 2) + "px"; p.style.top = (footY + H * 0.06 - H) + "px";
+    var px = bx + o.rx * 0.09;   // 照片裡的土坑在瓶子正中央偏右一點，讓牠坐在土坑正中間
+    p.style.left = (px - W / 2) + "px"; p.style.top = (footY + H * 0.06 - H) + "px";
     p.style.zIndex = String(Math.round(footY));
-    p.addEventListener("click", function () { if (!spin.moved) pokePet(); });
     var shadow = el("div", { class: "pet-shadow", "aria-hidden": "true" });   // 腳下的影子，讓牠坐在苔蘚上而不是浮著
-    shadow.style.left = (bx - W * 0.42) + "px"; shadow.style.top = (footY - H * 0.07) + "px";
+    shadow.style.left = (px - W * 0.42) + "px"; shadow.style.top = (footY - H * 0.07) + "px";
     shadow.style.width = (W * 0.84) + "px"; shadow.style.height = (H * 0.16) + "px";
     shadow.style.zIndex = String(Math.round(footY) - 1);
     layer.appendChild(shadow);
+    p.addEventListener("click", function () { if (!spin.moved) pokePet(); });
     layer.appendChild(p);
     pet.el = p; drawPet();
     if (!pet.timer) pet.timer = setInterval(tickPet, 110);
