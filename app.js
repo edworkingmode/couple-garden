@@ -637,8 +637,51 @@
     closeSheet();
     act(function () { return sb.from("cg_reward_claims").update({ status: ok ? "confirmed" : "rejected", reply: reply || "" }).eq("id", c.id); }, ok ? "兌換成立 🎁" : "已退回");
   }
-  function openRecords() {
-    var owner = viewOwner();
+  // ---------- 花花圖書館：每一朵種下的花，依月份排成相簿 ----------
+  var libTab = "in";
+  function openLibrary() {
+    var owner = libTab === "in" ? me : partner;
+    var kids = [el("h2", { text: "花花圖書館" })];
+    if (partner) {
+      kids.push(el("div", { class: "libtabs" }, [["in", "我收到的"], ["out", "我送出的"]].map(function (t) {
+        return el("button", { class: "libtab" + (libTab === t[0] ? " on" : ""), text: t[1], onclick: function () { libTab = t[0]; openLibrary(); } });
+      })));
+    }
+    var all = owner ? entries.filter(function (e) { return e.owner === owner.id && e.kind !== "black" && e.status === "confirmed"; }).sort(function (a, b) { return a.ts - b.ts; }) : [];
+    var col = owner ? gardenColor(owner) : "red";
+    if (!all.length) {
+      kids.push(el("p", { class: "legend", text: libTab === "in" ? "還沒有收到花。申請一朵，等對方確認後就會收進這裡。" : "還沒有送出的花。" }));
+    } else {
+      var months = {}, order = [];
+      all.forEach(function (e, i) {
+        var k = e.day.slice(0, 7);
+        if (!months[k]) { months[k] = []; order.push(k); }
+        months[k].push({ e: e, nth: i + 1 });
+      });
+      var top = order.slice().sort(function (a, b) { return months[b].length - months[a].length; })[0];
+      kids.push(el("div", { class: "libstats" }, [
+        el("div", {}, [el("b", { text: String(all.length) }), el("span", { text: "朵" })]),
+        el("div", {}, [el("b", { text: shortDate(all[0].day) }), el("span", { text: "第一朵" })]),
+        el("div", {}, [el("b", { text: +top.slice(5) + "月" }), el("span", { text: "最多花的月份" })])
+      ]));
+      order.reverse().forEach(function (k) {
+        var list = months[k].slice().reverse();
+        kids.push(el("h3", { class: "libmonth", text: k.slice(0, 4) + " 年 " + (+k.slice(5)) + " 月・" + list.length + " 朵" }));
+        kids.push(el("div", { class: "libgrid" }, list.map(function (x) {
+          return el("button", { class: "libcell", onclick: function () { openEntry(x.e, x.nth); } }, [
+            el("div", { class: "librose " + col, "aria-hidden": "true" }),
+            el("div", { class: "libno", text: "No." + x.nth + "・" + shortDate(x.e.day) }),
+            el("div", { class: "libnote", text: x.e.note || "（沒有留言）" })
+          ]);
+        })));
+      });
+    }
+    kids.push(el("button", { class: "btn ghost libmore", text: "完整紀錄（含小黑花、退回、兌換）", onclick: function () { openRecords(owner); } }));
+    kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })]));
+    openPanel(kids);
+  }
+  function openRecords(who) {
+    var owner = who && who.id ? who : viewOwner();
     var list = entries.filter(function (e) { return owner && e.owner === owner.id; })
       .concat(claims.filter(function (c) { return owner && c.owner === owner.id; }).map(function (c) { return Object.assign({ _claim: true, day: dateKey(new Date(c.ts)) }, c); }))
       .sort(function (a, b) { return b.ts - a.ts; }).slice(0, 80);
@@ -1010,7 +1053,7 @@
     page2.appendChild(el("button", { class: "tab", onclick: openPending }, [ico("M5 12.5l4.5 4.5L19 7.5"), "待處理", pend.length ? el("span", { class: "badge", text: String(pend.length) }) : null]));
     page2.appendChild(el("button", { class: "tab", onclick: openRewards }, [ico("M4 11h16v9H4zM3 7h18v4H3zM12 7v13M12 7c-2-4-6-3-5 0M12 7c2-4 6-3 5 0"), "獎勵"]));
     page2.appendChild(el("button", { class: "tab", onclick: sendMiss }, [ico("M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"), "想你"]));
-    page2.appendChild(el("button", { class: "tab", onclick: openRecords }, [ico("M8 6.5h11M8 12h11M8 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"), "紀錄"]));
+    page2.appendChild(el("button", { class: "tab", onclick: function () { libTab = "in"; openLibrary(); } }, [ico("M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4zM5 16a4 4 0 0 1 4-4h10"), "圖書館"]));
 
     // 第三頁：我們、設定
     var page3 = el("div", { class: "page" });
