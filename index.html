@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>情侶花園</title>
-<meta name="app-version" content="5">
+<meta name="app-version" content="6">
 <meta name="theme-color" content="#010101">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -118,6 +118,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outli
   .num { font-size: 52px; }
   .caption { margin-top: 2px; }
 }
+.orb-front { position: absolute; pointer-events: none; z-index: 2; }
+.novideo .orb-front { display: none; }
 .conn { font-size: 12px; color: var(--amber); letter-spacing: .08em; }
 .msgcard { border-radius: 16px; padding: 14px; background: rgba(255,255,255,.06); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
 .msgcard small { color: var(--ink-faint); font-size: 12px; letter-spacing: .1em; }
