@@ -323,7 +323,9 @@
       n.style.width = (o.rx * 2) + "px"; n.style.height = (o.ry * 2) + "px";
       layer.appendChild(n);
     };
-    box(el("img", { class: "orb-front", src: ASSET.front, alt: "", "aria-hidden": "true" }));
+    var front = el("img", { class: "orb-front", src: ASSET.front, alt: "", "aria-hidden": "true" });
+    box(front);
+    front.style.zIndex = String(Math.round(o.cy + o.ry * 0.47));   // 比這條線更前面的花和小精靈畫在苔蘚上面
     box(el("div", { class: "orb-haze", "aria-hidden": "true" }));      // 瓶子裡的頂光和底部陰影
     box(el("img", { class: "orb-glass", src: ASSET.glass + "?v=28", alt: "", "aria-hidden": "true" }));   // 玻璃反光蓋在最上面：花和小精靈才會在玻璃後面
   }
@@ -479,6 +481,7 @@
   // 新手導覽：每一步說明一個功能，並把下方工具列切到那一頁（page：0 天數、1 種花、2 互動、3 我們）
   var INTRO = [
     { icon: "🌱", t: "歡迎來到你們的花園", d: "這是兩個人一起照顧的瓶子。每當對方為你做了一件事、或你做到一件想讓對方知道的事，就種下一朵花，寫下它的意義。花會一朵一朵長滿瓶子，變成你們的回憶。" },
+    { icon: "💌", t: "每天報平安", d: "上方的小膠囊就是報平安。每天點一下，選個心情、說一句話，讓對方知道你平安。兩個人都報了，連續天數就會 +1。" },
     { icon: "🌹", t: "申請一朵花", page: 1, d: "下方工具列往左滑到「種花」頁，按「申請一朵花」，寫下這朵花的意義，例如「今天有好好吃三餐」。一天最多申請 3 次。" },
     { icon: "✅", t: "對方確認，花才會種下", page: 2, d: "你的申請會出現在對方「互動」頁的「待處理」。對方確認後，花就會從瓶口落下，長在你的苔蘚上。對方的申請也會出現在你的待處理，記得也幫對方確認。" },
     { icon: "💐", t: "主動送花", d: "點最上面對方的名字，切到對方的瓶子，在「種花」頁按「送一朵花」，不用確認，直接種進對方的瓶子。你送的花是你選的顏色，可以在設定裡換。" },
@@ -798,8 +801,8 @@
     var n = streak(), a = myCheckin(), b = checkinOf(partner, localDay(partner.tz));
     var who = function (p, c) { return el("span", { class: "ck" + (c ? " ok" : "") }, [nick(p) + " " + (c ? (c.mood || "✓") : "…")]); };
     checkStreakCard(n);
-    return el("button", { class: "checkline", onclick: function () { if (!a) openCheckin(); else if (b) toast(nick(partner) + "：" + (b.note || "今天平安")); else toast(nick(partner) + "今天還沒報平安"); } }, [
-      el("span", { class: "streak", text: n ? "🔥 連續 " + n + " 天" : "今天報平安了嗎" }),
+    return el("button", { class: "checkline" + (a ? "" : " todo"), onclick: function () { if (!a) openCheckin(); else if (b) toast(nick(partner) + "：" + (b.note || "今天平安")); else toast(nick(partner) + "今天還沒報平安"); } }, [
+      a ? el("span", { class: "streak", text: n ? "🔥 連續 " + n + " 天" : "✓ 已報平安" }) : el("span", { class: "streak", text: "💌 今天還沒報平安，點我" }),
       who(me, a), who(partner, b)
     ]);
   }
@@ -1179,11 +1182,6 @@
         openInput("送" + nick(partner) + "一朵花", "這朵花的意義，例如：謝謝你今天陪我", "送出", giveFlower, true);
       } }, [el("span", { class: "name", text: "送" + (partner ? nick(partner) : "對方") + "一朵花" }), el("span", { class: "state", text: "直接種進對方的瓶子" })]));
     }
-    var ck = myCheckin();
-    if (mineView) page1.insertBefore(el("button", { class: "mbtn wide" + (ck ? " done" : ""), onclick: function () {
-      if (!partner) { toast("等對方加入後才能報平安"); return; }
-      openCheckin();
-    } }, [el("span", { class: "name", text: ck ? "已報平安 " + (ck.mood || "✓") : "報平安" }), el("span", { class: "state", text: ck ? "明天再來" : "今天過得好嗎" })]), page1.firstChild);
     page1.appendChild(el("button", { class: "mbtn wide blackbtn", onclick: function () {
       if (!partner) { toast("等對方加入後才能給"); return; }
       openInput("給" + nick(partner) + "一朵小黑花", "原因，例如：又熬夜不睡", "給", giveBlack, true);
