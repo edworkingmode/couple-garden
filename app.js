@@ -22,7 +22,7 @@
   var ASSET = (window.innerWidth <= 700 && window.innerHeight > window.innerWidth) ? ASSETS.mobile : ASSETS.full;
   var VID = { w: ASSET.w, h: ASSET.h }, ORB = ASSET.orb;
 
-  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [];
+  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [];
   var view = "me", dockPage = 0, busy = false, loaded = false, poller = null, connText = "";
   var sheetOnClose = null, cardQueue = [], seen = {}, shown = {}, animated = {}, cardShown = {}, entered = false;
 
@@ -66,6 +66,10 @@
   function sheetOpen() { return !!document.getElementById("sheet-root").firstChild; }
   function nick(p) { return (p && p.nickname) || "對方"; }
   function tzName(tz) { for (var i = 0; i < TZS.length; i++) if (TZS[i][0] === tz) return TZS[i][1]; return tz; }
+  function clockText(p) {
+    var t = localTime(p.tz), h = parseInt(t, 10);
+    return (p === me ? "我" : nick(p)) + "・" + tzName(p.tz) + " " + t + " " + (h >= 6 && h < 18 ? "☀︎" : "☾");
+  }
   function localTime(tz) { try { return new Intl.DateTimeFormat("zh-TW", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date()); } catch (e) { return ""; } }
   function errText(e) {
     var m = (e && (e.message || e.error_description)) || String(e);
@@ -208,14 +212,45 @@
         it.f.style.scale = (0.86 + 0.28 * dp).toFixed(3);
         it.f.style.opacity = (0.72 + 0.28 * dp).toFixed(2);
         it.f.style.zIndex = String(Math.round(y));
+        if (it.f.classList.contains("new")) it.f.style.setProperty("--drop", Math.round((o.cy - o.ry * 0.9) - y) + "px");
       });
     };
     spin.place();
+    grow(layer, o, list.filter(function (d) { return d.kind !== "black"; }).length, bx, by, hw, hh, S0, color);
     var grab = el("div", { class: "orb-grab", "aria-hidden": "true" });
     grab.style.left = (o.cx - o.rx) + "px"; grab.style.top = (o.cy - o.ry) + "px"; grab.style.width = (o.rx * 2) + "px"; grab.style.height = (o.ry * 2) + "px";
     layer.insertBefore(grab, layer.firstChild);
     spin.bind(layer, o.rx);
     addFront(layer, o);
+  }
+  // 瓶子隨花朵數量長大：10 朵起瓶裡有螢火蟲、30 朵苔蘚發光、50 朵中間開一朵大花
+  function grow(layer, o, n, bx, by, hw, hh, S0, color) {
+    if (n >= 30) {
+      var aura = el("div", { class: "orb-aura", "aria-hidden": "true" });
+      aura.style.left = (bx - hw * 1.1) + "px"; aura.style.top = (by - hh * 2.2) + "px";
+      aura.style.width = (hw * 2.2) + "px"; aura.style.height = (hh * 3.4) + "px";
+      layer.appendChild(aura);
+    }
+    if (n >= 10) {
+      var flies = Math.min(9, Math.floor(n / 10) + 1);
+      for (var i = 0; i < flies; i++) {
+        var f = el("div", { class: "orb-fly", "aria-hidden": "true" });
+        var ang = seeded(i + 300) * Math.PI * 2, rr = 0.25 + seeded(i + 301) * 0.55;
+        f.style.left = (o.cx + Math.cos(ang) * o.rx * rr * 0.8) + "px";
+        f.style.top = (o.cy - o.ry * 0.15 + Math.sin(ang) * o.ry * rr * 0.45) + "px";
+        f.style.animationDelay = (-seeded(i + 302) * 6).toFixed(2) + "s";
+        f.style.animationDuration = (5 + seeded(i + 303) * 4).toFixed(2) + "s";
+        layer.appendChild(f);
+      }
+    }
+    if (n >= 50) {
+      var big = photoFlower(777, false, S0 * 2.1, ATLAS[color]);
+      big.classList.add("bigbloom");
+      big.style.left = (bx - S0 * 1.05) + "px"; big.style.top = (by + hh * 0.1 - big._H) + "px";
+      big.style.zIndex = String(Math.round(by + hh * 0.1));
+      big.style.pointerEvents = "none";
+      layer.appendChild(big);
+    }
   }
   // 左右拖動玻璃缸：花跟著水平旋轉，放手後慢慢停下
   var spin = { theta: 0, vel: 0, moved: false, place: null, bound: null, k: 0.01,
@@ -273,9 +308,11 @@
       sb.from("cg_profiles").select("*").eq("couple_id", me.couple_id),
       sb.from("cg_tasks").select("*").eq("couple_id", me.couple_id).order("sort").order("created_at"),
       sb.from("cg_entries").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(2000),
-      sb.from("cg_dates").select("*").eq("couple_id", me.couple_id).order("day")
+      sb.from("cg_dates").select("*").eq("couple_id", me.couple_id).order("day"),
+      sb.from("cg_pings").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(20)
     ]);
-    res.forEach(function (r) { if (r.error) throw r.error; });
+    pings = res[5].error ? [] : (res[5].data || []);   // 還沒建 cg_pings 表時就當作沒有
+    res.slice(0, 5).forEach(function (r) { if (r.error) throw r.error; });
     couple = res[0].data;
     partner = (res[1].data || []).filter(function (p) { return p.id !== uid; })[0] || null;
     tasks = res[2].data || []; entries = res[3].data || []; dates = res[4].data || [];
@@ -349,6 +386,25 @@
     act(function () { return insertEntry({ owner: me.id, kind: "request", status: "pending", note: reason }); }, "已送出，等" + nick(partner) + "確認");
   }
   function giveFlower(reason) { act(function () { return insertEntry({ owner: partner.id, kind: "gift", status: "confirmed", note: reason }); }, "送出了，" + nick(partner) + "的瓶子長出一朵"); }
+  function sendMiss() {
+    if (!partner) { toast("等對方加入後才能傳"); return; }
+    var last = +(lsGet("cg-miss-sent") || 0);
+    if (Date.now() - last < 60000) { toast("剛剛傳過了，對方會看到的"); return; }
+    lsSet("cg-miss-sent", Date.now());
+    act(function () { return sb.from("cg_pings").insert({ couple_id: couple.id, from_id: me.id, ts: Date.now() }); }, "已經把想念傳給" + nick(partner));
+  }
+  // 對方按了「想你」：打開時瓶子亮一下
+  function checkMiss() {
+    if (!partner) return;
+    var key = "cg-miss-seen-" + me.id, seen = lsGet(key);
+    var got = pings.filter(function (x) { return x.from_id === partner.id; });
+    if (!got.length) return;
+    if (seen === null) { lsSet(key, got[0].ts); return; }
+    var fresh = got.filter(function (x) { return x.ts > +seen; });
+    lsSet(key, got[0].ts);
+    if (!fresh.length) return;
+    setTimeout(function () { glowOrb(false); toast(nick(partner) + "想你了" + (fresh.length > 1 ? "（" + fresh.length + " 次）" : "")); }, 1200);
+  }
   function giveBlack(reason) { act(function () { return insertEntry({ owner: partner.id, kind: "black", status: "confirmed", note: reason }); }, "已給" + nick(partner) + "一朵小黑花"); }
   function confirmEntry(e, reply) { act(function () { return updateEntry(e, { status: "confirmed", reply: reply || "", ts: Date.now() }); }, "已確認，" + nick(partner) + "的瓶子長出一朵"); }
   function rejectEntry(e, reply) { act(function () { return updateEntry(e, { status: "rejected", reply: reply || "" }); }, "已退回"); }
@@ -360,17 +416,72 @@
   }
 
   // ---------- 面板：花、待處理、紀錄 ----------
+  var INTRO = [
+    ["每一朵花，都有它的意義", "做了一件想讓對方知道的事，就到「種花」頁申請一朵，寫下這朵花的意義。"],
+    ["對方確認，花才會種下", "申請會出現在對方的「待處理」。對方確認後，花就會從瓶口落下，長在你的苔蘚上。"],
+    ["拖動瓶子，點開每一朵花", "左右拖動瓶子可以轉動裡面的花，點一朵就能看到那天寫下的話。也可以互相給小黑花、按「想你」。"]
+  ];
+  function showIntro(i) {
+    var last = i === INTRO.length - 1;
+    openPanel([
+      el("p", { class: "eyebrow", text: (i + 1) + " / " + INTRO.length }),
+      el("h2", { text: INTRO[i][0] }),
+      el("p", { class: "legend", style: "font-size:15px;line-height:1.7;color:var(--ink-soft)", text: INTRO[i][1] }),
+      el("div", { class: "row" }, [
+        last ? null : el("button", { class: "btn ghost", text: "跳過", onclick: closeSheet }),
+        el("button", { class: "btn primary", text: last ? "開始種花" : "下一步", onclick: function () { if (last) closeSheet(); else showIntro(i + 1); } })
+      ])
+    ]);
+  }
+  // ---------- 推播通知 ----------
+  var swReg = null;
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").then(function (r) { swReg = r; }).catch(function () {});
+  function pushReady() { return !!(swReg && window.PushManager && window.Notification && cfg.VAPID_PUBLIC_KEY); }
+  function pushHint() {
+    var ios = /iPhone|iPad/.test(navigator.userAgent), standalone = window.navigator.standalone || matchMedia("(display-mode: standalone)").matches;
+    if (ios && !standalone) return "iPhone 要先按分享 → 加入主畫面，從主畫面打開後才能開啟通知（iOS 16.4 以上）。";
+    if (!pushReady()) return "這個瀏覽器不支援通知。";
+    if (Notification.permission === "denied") return "通知被封鎖了，要到手機或瀏覽器的設定裡允許。";
+    if (Notification.permission === "granted") return "已開啟：對方申請花、送花、給小黑花、按「想你」時，你會收到通知。";
+    return "開啟後，對方申請花、送花、給小黑花、按「想你」時，你會收到通知。";
+  }
+  function b64u(str) {
+    var pad = "=".repeat((4 - str.length % 4) % 4), raw = atob((str + pad).replace(/-/g, "+").replace(/_/g, "/"));
+    var out = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i); return out;
+  }
+  async function enablePush() {
+    try {
+      var perm = await Notification.requestPermission();
+      if (perm !== "granted") { toast("沒有允許通知"); return; }
+      var sub = await swReg.pushManager.getSubscription() || await swReg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64u(cfg.VAPID_PUBLIC_KEY) });
+      var j = sub.toJSON();
+      closeSheet();
+      act(function () { return sb.from("cg_push_subs").upsert({ user_id: me.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: "endpoint" }); }, "通知已開啟");
+    } catch (e) { toast("開啟失敗：" + (e.message || e)); }
+  }
   function openEntry(e, nth) {
-    var by = byId(e.created_by), owner = byId(e.owner);
-    var kids = [el("h2", { text: (e.kind === "black" ? "小黑花" : "第 " + nth + " 朵") + "・" + shortDate(e.day) + " " + taskName(e) })];
-    if (e.note) kids.push(el("div", { class: "msgcard" }, [el("small", { text: nick(by) }), el("p", { text: e.note })]));
-    if (e.reply) kids.push(el("div", { class: "msgcard" }, [el("small", { text: e.kind === "black" ? nick(owner) + "的申訴" : nick(e.created_by === me.id ? partner : me) }), el("p", { text: e.reply })]));
-    if (!e.note && !e.reply) kids.push(el("p", { class: "legend", text: "這朵花沒有留言，但它記得那天的事。" }));
-    if (e.kind === "black") {
-      if (e.status === "appeal") kids.push(el("p", { class: "legend", text: "申訴中。" }));
-      kids.push(el("div", { class: "row" }, blackActions(e)));
-    }
-    kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })]));
+    var by = byId(e.created_by), owner = byId(e.owner), black = e.kind === "black";
+    var d = parseDay(e.day), wk = "日一二三四五六"[d.getDay()];
+    var how = black ? nick(by) + "給的小黑花"
+      : e.kind === "gift" ? nick(by) + "送給" + nick(owner)
+      : e.kind === "request" ? nick(owner) + "申請，" + nick(owner === me ? partner : me) + "確認"
+      : nick(owner) + "完成「" + taskName(e) + "」";
+    var col = black ? "black" : (owner && owner.color === "blue" ? "blue" : "red");
+    var idx = Math.floor(seeded((nth - 1 + (owner && partner && owner.id === partner.id ? 500 : 0)) * 3 + 1) * 9);  // 跟瓶子裡同一朵花長得一樣
+    var bloom = el("div", { class: "fc-bloom " + col, "aria-hidden": "true" });
+    bloom.style.backgroundPosition = (idx % 3) * 50 + "% " + Math.floor(idx / 3) * 50 + "%";
+    var card = el("div", { class: "fcard" + (black ? " black" : "") }, [
+      bloom,
+      el("div", { class: "fc-no", text: black ? "小黑花" : "No. " + nth }),
+      el("div", { class: "fc-date", text: d.getFullYear() + "." + (d.getMonth() + 1) + "." + d.getDate() + "　星期" + wk }),
+      el("div", { class: "fc-how", text: how }),
+      e.note ? el("blockquote", { class: "fc-note", text: e.note }) : el("p", { class: "fc-empty", text: "這朵花沒有留言，但它記得那天的事。" }),
+      e.reply ? el("div", { class: "fc-reply" }, [el("small", { text: black ? nick(owner) + "的申訴" : nick(e.created_by === me.id ? partner : me) + "的回覆" }), el("p", { text: e.reply })]) : null,
+      black && e.status === "appeal" ? el("p", { class: "fc-empty", text: "申訴中" }) : null
+    ]);
+    var kids = [card];
+    if (black) kids.push(el("div", { class: "row" }, blackActions(e)));
+    kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "收起來", onclick: closeSheet })]));
     openPanel(kids);
   }
   function blackActions(e) {
@@ -493,7 +604,7 @@
         } })
       ])]));
     });
-    var title = el("input", { type: "text", id: "date-title", placeholder: "例如：她的生日、交往紀念日", maxlength: "40" });
+    var title = el("input", { type: "text", id: "date-title", placeholder: "例如：對方的生日、交往紀念日", maxlength: "40" });
     var day = el("input", { type: "date", id: "date-day" });
     var yearly = el("input", { type: "checkbox", id: "date-yearly", checked: "" });
     openPanel([
@@ -537,6 +648,9 @@
         closeSheet(); act(function () { return sb.from("cg_profiles").update(patch).eq("id", me.id); }, "已儲存");
       } })])
     ];
+    kids.push(el("h3", { text: "通知" }));
+    kids.push(el("p", { class: "legend", text: pushHint() }));
+    if (pushReady()) kids.push(el("button", { class: "btn", text: Notification.permission === "granted" ? "重新開啟這支手機的通知" : "開啟通知", onclick: enablePush }));
     kids.push(el("h3", { text: "我們的花園" }));
     kids.push(el("p", { class: "legend", text: "邀請碼：" + (couple ? couple.invite_code : "") + (partner ? "（已配對）" : "（把這組碼給對方）") }));
     kids.push(el("div", { class: "row" }, [
@@ -659,6 +773,8 @@
     var fresh = {}, freshCount = 0;
     var myG = mineView ? g : garden(me);
     if (loaded) {
+      checkMiss();
+      if (partner && lsGet("cg-intro-" + me.id) === null) { lsSet("cg-intro-" + me.id, 1); setTimeout(function () { queueCard(function () { showIntro(0); }); }, 900); }
       var s = getSeen(myG.maxTs);
       // 我的玻璃球裡每一朵都是對方確認或送來的，所以只要比「上次看過」新就算新花
       var newOnes = myG.inOrb.filter(function (e) { return e.ts > s; });
@@ -692,7 +808,7 @@
     var statRow = stats.length
       ? el("div", { class: "stats" }, stats.slice(0, 3).map(function (x) { return el("button", { class: "stat" + (x.cls || ""), onclick: openUs }, [el("b", { text: x.n }), el("span", { text: x.label })]); }))
       : el("div", { class: "stats" }, [el("button", { class: "stat setup", onclick: openUs }, [el("b", { text: "＋" }), el("span", { text: "設定紀念日" })])]);
-    var tzLine = partner && partner.tz && partner.tz !== me.tz ? nick(partner) + "在" + tzName(partner.tz) + " " + localTime(partner.tz) : "";
+    var tzLine = partner && partner.tz && partner.tz !== me.tz ? clockText(me) + "　·　" + clockText(partner) : "";
 
     var tabs = el("div", { class: "gtabs", role: "tablist" }, [["me", me], ["partner", partner]].map(function (pair) {
       var key = pair[0], p = pair[1];
@@ -741,9 +857,14 @@
     page2.appendChild(el("button", { class: "tab", onclick: openPending }, [ico("M5 12.5l4.5 4.5L19 7.5"), "待處理", pend.length ? el("span", { class: "badge", text: String(pend.length) }) : null]));
     if (mineView) {
       page2.appendChild(el("button", { class: "tab", onclick: openBlacks }, [ico("M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16"), "小黑花"]));
+      page2.appendChild(el("button", { class: "tab", onclick: function () {
+        if (!partner) { toast("等對方加入後才能給"); return; }
+        openInput("給" + nick(partner) + "一朵小黑花", "原因，例如：又熬夜不睡", "給", giveBlack, true);
+      } }, [ico("M12 7v5M12 16h.01M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16"), "給小黑花"]));
     } else {
       page2.appendChild(el("button", { class: "tab", onclick: function () { openInput("給" + nick(partner) + "一朵小黑花", "原因，例如：又熬夜不睡", "給", giveBlack, true); } }, [ico("M12 4a8 8 0 1 0 0 16a8 8 0 1 0 0-16"), "給小黑花"]));
     }
+    page2.appendChild(el("button", { class: "tab", onclick: sendMiss }, [ico("M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"), "想你"]));
     page2.appendChild(el("button", { class: "tab", onclick: openRecords }, [ico("M8 6.5h11M8 12h11M8 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01"), "紀錄"]));
 
     // 第三頁：我們、設定
