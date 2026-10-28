@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>情侶花園</title>
-<meta name="app-version" content="15">
+<meta name="app-version" content="16">
 <meta name="theme-color" content="#010101">
 <meta name="color-scheme" content="dark">
 <meta name="darkreader-lock">
@@ -281,6 +281,12 @@ input::placeholder { color: var(--ink-faint); }
 .dock .stat b { font-size: 30px; }
 .dock .stat span { font-size: 11px; letter-spacing: .12em; }
 #bignum { display: none; }  /* 花朵總數改放在上方小字 */
+/* 拖動玻璃缸旋轉 */
+.orb-grab { position: absolute; border-radius: 50%; pointer-events: auto; cursor: grab; touch-action: pan-y; z-index: 0; }
+.orb-grab:active { cursor: grabbing; }
+.pf { touch-action: pan-y; }
+.pf.picked { transform: scale(1.25); }
+#orb-layer .orb-front { z-index: 100000; }
 </style>
 </head>
 <body>
