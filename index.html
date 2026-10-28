@@ -4,8 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>情侶花園</title>
-<meta name="app-version" content="6">
+<meta name="app-version" content="8">
 <meta name="theme-color" content="#010101">
+<meta name="color-scheme" content="dark">
+<meta name="darkreader-lock">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -14,7 +16,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
 <link rel="stylesheet" href="https://db.onlinewebfonts.com/c/2bf40ab72ea4897a3fd9b6e48b233a19?family=Garamond">
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
 <style>
 /* 版面概念：一頁滿版。影片當背景，上方是數字與三餐按鈕，小紅花種在影片裡那顆玻璃球內。其餘功能用彈出面板。 */
 :root {
@@ -120,6 +122,26 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outli
 }
 .orb-front { position: absolute; pointer-events: none; z-index: 2; }
 .novideo .orb-front { display: none; }
+#bignum { position: absolute; top: 0; right: 0; bottom: 0; left: 0; pointer-events: none; z-index: 1; }
+#bignum .bn-num { position: absolute; transform: translateX(-50%); font-family: 'Instrument Serif', var(--font-display); font-style: italic; line-height: 1; letter-spacing: -0.03em; color: rgba(255, 255, 255, .92); white-space: nowrap; font-variant-numeric: tabular-nums; text-shadow: 0 2px 30px rgba(0, 0, 0, .35); }
+#bignum .bn-unit { position: absolute; font-size: 12px; letter-spacing: .2em; color: rgba(255, 255, 255, .72); white-space: nowrap; }
+#orb-layer { z-index: 2; }
+#fx { position: absolute; top: 0; left: 0; pointer-events: none; z-index: 3; }
+.topr { display: flex; align-items: center; gap: 8px; }
+.tiltbtn { font-size: 12px; letter-spacing: .1em; padding: 6px 12px; border-radius: 999px; background: rgba(16, 18, 17, .78); border: 1px solid rgba(255, 255, 255, .28); color: rgba(255, 255, 255, .85); }
+/* 進場動畫：第一次打開時依序浮上來 */
+@keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes bigrise { from { opacity: 0; transform: translate(-50%, 34px) scale(.96); } to { opacity: 1; transform: translate(-50%, 0); } }
+.enter .top, .enter .gtabs, .enter .stat, .enter .chips, .enter .caption, .enter .dock { animation: rise .8s cubic-bezier(.2, .8, .2, 1) both; }
+.enter .gtabs { animation-delay: .1s; } .enter .stat:nth-child(1) { animation-delay: .2s; } .enter .stat:nth-child(2) { animation-delay: .28s; } .enter .stat:nth-child(3) { animation-delay: .36s; }
+.enter .chips { animation-delay: .45s; } .enter .caption { animation-delay: .5s; } .enter .dock { animation-delay: .6s; }
+#bignum.enter .bn-num { animation: bigrise 1.4s cubic-bezier(.2, .8, .2, 1) .25s both; }
+#bignum.enter .bn-unit { animation: rise 1s ease .9s both; }
+/* 白色發光主按鈕 */
+html .btn.primary { background: #fff; color: #0b0b0b; font-weight: 600; box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); transition: box-shadow .2s ease, transform .2s ease; }
+html .btn.primary:hover, html .btn.primary:focus-visible { box-shadow: 0 0 24px 4px rgba(255, 255, 255, .25); }
+html .btn.primary:active { transform: scale(.97); box-shadow: 0 0 28px 6px rgba(255, 255, 255, .32); }
+@media (prefers-reduced-motion: reduce) { .enter .top, .enter .gtabs, .enter .stat, .enter .chips, .enter .caption, .enter .dock, #bignum.enter .bn-num, #bignum.enter .bn-unit { animation: none; } }
 .conn { font-size: 12px; color: var(--amber); letter-spacing: .08em; }
 .msgcard { border-radius: 16px; padding: 14px; background: rgba(255,255,255,.06); border: 1px solid var(--line); display: flex; flex-direction: column; gap: 4px; }
 .msgcard small { color: var(--ink-faint); font-size: 12px; letter-spacing: .1em; }
