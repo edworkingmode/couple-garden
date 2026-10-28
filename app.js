@@ -16,8 +16,8 @@
   ];
   var ATLAS = { red: "", blue: " blue", black: " black" };
   var ASSETS = {
-    full: { video: "bg-loop.mp4", front: "front.webp", start: "bg-start.jpg", end: "bg-end.jpg", w: 1920, h: 1086, orb: { cx: 0.506, cy: 0.718, rx: 0.1413, ry: 0.2356 } },
-    mobile: { video: "bg-m-loop.mp4", front: "front-m.webp", start: "bg-m-start.jpg", end: "bg-m-end.jpg", w: 1440, h: 1464, orb: { cx: 0.5, cy: 0.5833, rx: 0.3757, ry: 0.3484 } }
+    full: { video: "", front: "front.webp", start: "bowl.jpg", end: "bowl.jpg", w: 1376, h: 768, orb: { cx: 0.4982, cy: 0.6081, rx: 0.1857, ry: 0.3229 } },
+    mobile: { video: "", front: "front-m.webp", start: "bowl-m.jpg", end: "bowl-m.jpg", w: 768, h: 1376, orb: { cx: 0.4974, cy: 0.5193, rx: 0.3177, ry: 0.1755 } }
   };
   var ASSET = (window.innerWidth <= 700 && window.innerHeight > window.innerWidth) ? ASSETS.mobile : ASSETS.full;
   var VID = { w: ASSET.w, h: ASSET.h }, ORB = ASSET.orb;
@@ -128,7 +128,7 @@
     var sc = Math.max(target / (2 * ORB.rx * VID.w), vw / VID.w);
     var left = vw / 2 - ORB.cx * VID.w * sc;
     left = Math.min(0, Math.max(vw - VID.w * sc, left));
-    var top = vh - DOCK_GAP - VID.h * sc;
+    var top = vh - DOCK_GAP - 6 - (ORB.cy + ORB.ry) * VID.h * sc;  // 魚缸底部貼著工具列上緣
     // 手機：文字區太高時，玻璃球最多往下讓 40px（下緣會藏到工具列後面）
     var heroM = document.querySelector("#ui .hero"), hb = heroM ? heroM.getBoundingClientRect().bottom : 0;
     var orbTop = top + (ORB.cy - ORB.ry) * VID.h * sc;
@@ -174,8 +174,7 @@
     layer.appendChild(fb);
     var dim = el("div", { id: "orb-dim" });
     dim.style.left = (o.cx - o.rx * 0.97) + "px"; dim.style.top = (o.cy - o.ry * 0.97) + "px"; dim.style.width = (o.rx * 1.94) + "px"; dim.style.height = (o.ry * 1.94) + "px";
-    layer.appendChild(dim);
-    var bx = o.cx, by = o.cy + 0.44 * o.ry, hw = 0.82 * o.rx, hh = 0.34 * o.ry;
+    var bx = o.cx, by = o.cy + 0.39 * o.ry, hw = 0.8 * o.rx, hh = 0.26 * o.ry;
     if (!n) {
       layer.appendChild(el("div", { class: "orb-hint", style: "left:" + o.cx + "px;top:" + (o.cy + 0.2 * o.ry) + "px", text: "第一朵花，等著被種下" }));
       addFront(layer, o);
@@ -886,12 +885,12 @@
     v.poster = ASSET.start;
     still.addEventListener("error", function () { stage.classList.add("novideo"); });
     still.src = ASSET.end;
-    v.src = ASSET.video;
+    if (ASSET.video) v.src = ASSET.video; else stage.classList.add("still-on");
     function showStill() { stage.classList.add("still-on"); }
     v.addEventListener("ended", showStill);
     v.addEventListener("playing", function () { stage.classList.remove("still-on"); });
     v.addEventListener("error", showStill);
-    var p = v.play(); if (p && p.catch) p.catch(showStill);
+    if (ASSET.video) { var p = v.play(); if (p && p.catch) p.catch(showStill); }
     setTimeout(function () { if (!v.ended && (v.paused || v.readyState < 2)) showStill(); }, 2500);
     document.addEventListener("touchstart", function () { if (v.paused && !v.ended) { var q = v.play(); if (q && q.catch) q.catch(function () {}); } }, { once: true, passive: true });
   })();
