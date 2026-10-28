@@ -114,14 +114,14 @@
   }
 
   // ---------- 背景與玻璃球 ----------
-  var DOCK_GAP = 106;
+  var DOCK_GAP = 162;
   function vidLayout() {
     var stage = document.getElementById("stage");
     var vw = stage.clientWidth, vh = stage.clientHeight;
     var target = Math.min(vw * 0.82, vh * 0.42);
     if (ASSET === ASSETS.full) {
       var hero = document.querySelector("#ui .hero"), heroBottom = hero ? hero.getBoundingClientRect().bottom : 0;
-      var scHero = (vh - DOCK_GAP - heroBottom - 20) / (VID.h * (1 - ORB.cy + ORB.ry));
+      var scHero = (vh - DOCK_GAP - heroBottom - 84) / (VID.h * (1 - ORB.cy + ORB.ry));
       var scD = Math.max(0.12, Math.min(target / (2 * ORB.rx * VID.w), scHero));
       return { s: scD, left: vw / 2 - ORB.cx * VID.w * scD, top: vh - DOCK_GAP - VID.h * scD };
     }
@@ -684,7 +684,6 @@
     }
     ui.appendChild(el("div", { class: "hero" }, [
       tabs,
-      statRow,
       el("div", { class: "chips" }, [
         el("span", {}, ["本週 ", el("b", { text: String(g.week) }), " 朵"]),
         el("span", { class: "blk" }, ["小黑花 ", el("b", { text: String(g.blacks.length) }), " 朵"])
@@ -746,7 +745,7 @@
       var n = Math.round(pages.scrollLeft / Math.max(1, pages.clientWidth));
       if (n !== dockPage) { dockPage = n; dotEls.forEach(function (d, k) { d.classList.toggle("on", k === n); }); }
     }, { passive: true });
-    ui.appendChild(el("div", { class: "dock liquid-glass" }, [pages, dots]));
+    ui.appendChild(el("div", { class: "dock liquid-glass" }, [statRow, pages, dots]));
     pages.scrollLeft = dockPage * pages.clientWidth;
 
     layoutVideo();
@@ -773,16 +772,14 @@
     if (!b || !couple) return;
     var o = orbGeom(), num = b.querySelector(".bn-num"), unit = b.querySelector(".bn-unit");
     var hero = document.querySelector("#ui .hero"), hb = hero ? hero.getBoundingClientRect().bottom : 0;
-    var base = (o.cy - o.ry) + o.ry * 0.42;                       // 數字底部落在球裡 42% 的位置
-    var fs = Math.max(64, Math.min(window.innerWidth * 0.5, 300, (base - hb - 8) / 0.86));
+    var base = (o.cy - o.ry) - 4;                                  // 數字底部停在魚缸口上方，整個露出來
+    var fs = Math.max(56, Math.min(window.innerWidth * 0.4, 220, (base - hb - 8) / 0.86));
     num.style.fontSize = fs + "px";
     num.style.left = o.cx + "px";
     num.style.top = (base - fs * 0.86) + "px";
     var w = num.getBoundingClientRect().width || fs;
     unit.style.left = (o.cx + w / 2 + 6) + "px";
     unit.style.top = (base - fs * 0.86 + fs * 0.12) + "px";
-    var m = "radial-gradient(ellipse " + (o.rx * 0.985) + "px " + (o.ry * 0.985) + "px at " + o.cx + "px " + o.cy + "px, rgba(0,0,0,.14) 0, rgba(0,0,0,.14) 97%, #000 100%)";
-    b.style.webkitMaskImage = m; b.style.maskImage = m;
   }
   function animateNum(node, from, to, delay) {
     var t0 = null, dur = 900;
