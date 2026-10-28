@@ -172,7 +172,8 @@
     var layer = document.getElementById("orb-layer");
     var o = orbGeom(), n = list.length;
     // 每 8 秒會重新抓資料；花和尺寸都沒變就不重畫，不然小精靈和花會一閃一閃
-    var sig = (owner ? owner.id + gardenColor(owner) : "") + "|" + list.map(function (d) { return d.id + d.status; }).join(",") + "|" + [o.cx, o.cy, o.rx, o.ry].map(Math.round).join(",");
+    var lit = owner ? claims.filter(function (c) { return c.owner === owner.id && c.status === "done"; }).length : 0;
+    var sig = (owner ? owner.id + gardenColor(owner) : "") + "|" + lit + "|" + list.map(function (d) { return d.id + d.status; }).join(",") + "|" + [o.cx, o.cy, o.rx, o.ry].map(Math.round).join(",");
     var hasNew = fresh && Object.keys(fresh).length;
     if (sig === orbSig && !hasNew && layer.childNodes.length) return;
     orbSig = sig;
@@ -183,6 +184,7 @@
     var dim = el("div", { id: "orb-dim" });
     dim.style.left = (o.cx - o.rx * 0.97) + "px"; dim.style.top = (o.cy - o.ry * 0.97) + "px"; dim.style.width = (o.rx * 1.94) + "px"; dim.style.height = (o.ry * 1.94) + "px";
     var bx = o.cx, by = o.cy + 0.39 * o.ry, hw = 0.8 * o.rx, hh = 0.26 * o.ry;
+    addLanterns(layer, o, owner, bx, by, hw, hh);
     if (!n) {
       addPet(layer, bx, by, o);
       layer.appendChild(el("div", { class: "orb-hint", style: "left:" + o.cx + "px;top:" + (o.cy - 0.12 * o.ry) + "px", text: "第一朵花，等著被種下" }));
@@ -225,14 +227,6 @@
       });
     };
     spin.place();
-    if (/debug/.test(location.search + location.hash)) setTimeout(function () {   // 除錯用：網址最後加 #debug 會在畫面上列出每朵花的位置與狀態
-      var box = document.getElementById("dbg") || document.body.appendChild(el("pre", { id: "dbg", style: "position:fixed;left:4px;top:4px;right:4px;z-index:999999;background:rgba(0,0,0,.8);color:#9f9;font:10px monospace;white-space:pre-wrap;pointer-events:none" }));
-      var g = layer.getBoundingClientRect();
-      box.textContent = "n=" + n + " layer " + [g.x, g.y, g.width, g.height].map(Math.round) + " orb " + [o.cx, o.cy, o.rx, o.ry].map(Math.round) + "\n" + items.map(function (it) {
-        var r = it.f.getBoundingClientRect(), cs = getComputedStyle(it.f), rs = getComputedStyle(it.f.firstChild), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 3);
-        return it.d.kind + " " + [r.x, r.y, r.width, r.height].map(Math.round) + " z" + cs.zIndex + " op" + cs.opacity + " " + cs.display + " " + cs.animationName + " anim:" + (it.f.getAnimations ? it.f.getAnimations().map(function (a) { return a.playState; }) : "") + " bg:" + rs.backgroundImage.slice(-20) + " top:" + (hit ? hit.tagName + "." + hit.className : "-");
-      }).join("\n");
-    }, 2500);
     grow(layer, o, list.filter(function (d) { return d.kind !== "black"; }).length, bx, by, hw, hh, S0, color);
     addPet(layer, bx, by, o);
     addFront(layer, o);
@@ -266,7 +260,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=46"; PET_IMG.sleep.src = "pet-sleep.webp?v=46";
+  PET_IMG.idle.src = "pet-idle.webp?v=47"; PET_IMG.sleep.src = "pet-sleep.webp?v=47";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -708,6 +702,70 @@
     closeSheet();
     act(function () { return sb.from("cg_reward_claims").update({ status: ok ? "confirmed" : "rejected", reply: reply || "" }).eq("id", c.id); }, ok ? "兌換成立 🎁" : "已退回");
   }
+  // ---------- 待兌現的券 ----------
+  // 兌換成立後，獎勵還沒真的發生：主畫面留一張券提醒兩個人，兌換的人收到後按「收到了」，瓶子裡多一盞小燈
+  function tickets() { return claims.filter(function (c) { return c.status === "confirmed"; }); }
+  function ticketLine() {
+    var t = tickets();
+    if (!t.length) return null;
+    var mine = t.filter(function (c) { return c.owner === me.id; }).length, owe = t.length - mine;
+    var txt = [mine ? "我有 " + mine + " 張券" : "", owe ? "欠" + nick(partner) + " " + owe + " 張" : ""].filter(Boolean).join("・");
+    return el("button", { class: "ticketline", onclick: openTickets }, [el("span", { text: "🎟️ " + txt })]);
+  }
+  function ticketCard(c) {
+    var mine = c.owner === me.id;
+    return el("div", { class: "ticket" }, [
+      el("div", { class: "tk-l" }, [el("b", { text: c.title }), el("span", { text: (mine ? nick(partner) + "欠我的" : "我欠" + nick(partner) + "的") + "・" + shortDate(dateKey(new Date(c.ts))) + " 兌換" })]),
+      mine ? el("button", { class: "btn primary", text: "收到了", onclick: function () { openTicketDone(c); } }) : el("span", { class: "tk-wait", text: "等你兌現" })
+    ]);
+  }
+  function openTickets() {
+    var t = tickets(), kids = [el("h2", { text: "待兌現的券" })];
+    kids.push(el("p", { class: "legend", text: "兌換成立的獎勵會留在這裡，直到真的做到。收到的人按「收到了」，瓶子裡會多一盞小燈。" }));
+    t.filter(function (c) { return c.owner === me.id; }).concat(t.filter(function (c) { return c.owner !== me.id; })).forEach(function (c) { kids.push(ticketCard(c)); });
+    kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })]));
+    openPanel(kids);
+  }
+  function openTicketDone(c) {
+    var note = el("input", { type: "text", id: "tk-note", placeholder: "想對" + nick(partner) + "說什麼？（可不填）", maxlength: "60" });
+    openPanel([
+      el("h2", { text: "🏮 收到了：" + c.title }),
+      el("p", { class: "legend", text: "按下後這張券就完成了，瓶子裡會點亮一盞小燈，" + nick(partner) + "也會收到通知。" }),
+      el("label", { class: "field" }, [el("span", { text: "留言" }), note]),
+      el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "先不要", onclick: openTickets }),
+        el("button", { class: "btn primary", text: "收到了", onclick: function () {
+          closeSheet();
+          act(function () { return sb.from("cg_reward_claims").update({ status: "done", done_note: note.value.trim(), done_ts: Date.now() }).eq("id", c.id); }, "🏮 瓶子裡多了一盞小燈");
+        } })
+      ])
+    ]);
+  }
+  function openLantern(c) {
+    var t = new Date(c.done_ts || c.ts);
+    openPanel([
+      el("h2", { text: "🏮 " + c.title }),
+      el("p", { class: "legend", text: (c.owner === me.id ? "我" : nick(byId(c.owner))) + "在 " + shortDate(dateKey(t)) + " 收到的獎勵（" + c.cost + " 朵兌換）" }),
+      c.done_note ? el("p", { class: "note", text: "「" + c.done_note + "」" }) : null,
+      el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })])
+    ]);
+  }
+  // 瓶子裡的小燈：每兌現一個獎勵就點一盞，沿著苔蘚後緣排開。光暈用漸層畫，不用濾鏡（iPhone 才畫得出來）
+  function addLanterns(layer, o, owner, bx, by, hw, hh) {
+    var done = owner ? claims.filter(function (c) { return c.owner === owner.id && c.status === "done"; }).sort(function (a, b) { return (a.done_ts || a.ts) - (b.done_ts || b.ts); }) : [];
+    var S = o.ry * 0.24;
+    done.slice(0, 24).forEach(function (c, i) {
+      var ang = Math.PI * (1.15 + 0.7 * ((i * 0.618) % 1));   // 後半圈，不擋住前面的花
+      var x = bx + Math.cos(ang) * hw * 0.92, y = by + Math.sin(ang) * hh * 0.55 - o.ry * 0.14;   // 浮在苔蘚上方一點
+      var L = el("div", { class: "lantern", role: "button", "aria-label": "獎勵小燈：" + c.title });
+      L.style.width = S + "px"; L.style.height = S * 1.3 + "px";
+      L.style.left = (x - S / 2) + "px"; L.style.top = (y - S * 1.3) + "px";
+      L.style.zIndex = String(Math.round(by - hh));   // 在苔蘚上面、花的後面
+      L.style.animationDelay = (-i * 0.9) + "s";
+      L.addEventListener("click", function () { openLantern(c); });
+      layer.appendChild(L);
+    });
+  }
   // ---------- 花花圖書館：每一朵種下的花，依月份排成相簿 ----------
   var libTab = "in";
   function openLibrary() {
@@ -769,10 +827,11 @@
         return;
       }
       if (e._claim) {
-        var ct = { pending: "等確認", rejected: "沒有兌換" }[e.status];
+        var ct = { pending: "等確認", rejected: "沒有兌換", confirmed: "待兌現", done: "🏮 已兌現" }[e.status];
         log.appendChild(el("li", { class: "claim" }, [el("span", { class: "when", text: shortDate(e.day) }), el("div", { class: "what" }, [
           el("div", {}, [el("b", { text: "🎁 兌換：" + e.title + "（" + e.cost + " 朵）" }), ct ? el("span", { class: "tag" + (e.status === "pending" ? "" : " no"), text: ct }) : null]),
-          e.reply ? el("p", { class: "reply", text: nick(e.owner === me.id ? partner : me) + "：" + e.reply }) : null
+          e.reply ? el("p", { class: "reply", text: nick(e.owner === me.id ? partner : me) + "：" + e.reply }) : null,
+          e.done_note ? el("p", { class: "note", text: nick(byId(e.owner)) + "：" + e.done_note }) : null
         ])]));
         return;
       }
@@ -1201,6 +1260,7 @@
         el("span", { class: "blk" }, ["小黑花 ", el("b", { text: String(g.blacks.length) }), " 朵"])
       ]),
       partner ? checkinLine() : null,
+      partner ? ticketLine() : null,
       tzLine ? el("p", { class: "caption", text: tzLine }) : null,
       !partner ? el("div", { class: "invite" }, [
         el("p", { class: "invite-t", text: "還差一步：邀請另一半加入" }),
