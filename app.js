@@ -239,7 +239,9 @@
   }
   function addPet(layer, bx, by, o) {
     var B = petBox(o, bx, by), H = B.h, W = B.w;
-    var p = el("div", { class: "pet", role: "button", "aria-label": "苔蘚小精靈" });
+    var p = el("canvas", { class: "pet", role: "button", "aria-label": "苔蘚小精靈" });
+    var dpr = Math.min(3, window.devicePixelRatio || 1);
+    p.width = Math.round(W * dpr); p.height = Math.round(H * dpr);
     p.style.width = W + "px"; p.style.height = H + "px";
     var footY = B.foot;   // 坐在苔蘚前半部，大部分的花在牠後面
     var px = B.x;   // 照片裡的土坑在瓶子正中央偏右一點，讓牠坐在土坑正中間
@@ -255,12 +257,18 @@
     pet.el = p; drawPet();
     if (!pet.timer) pet.timer = setInterval(tickPet, 140);
   }
+  // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
+  var PET_IMG = { idle: new Image(), sleep: new Image() };
+  PET_IMG.idle.src = "pet-idle.webp?v=41"; PET_IMG.sleep.src = "pet-sleep.webp?v=41";
+  PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
-    if (!pet.el) return;
-    var sheet = (pet.mode === "idle" ? "pet-idle.webp" : "pet-sleep.webp") + "?v=36", n = pet.mode === "idle" ? PET.idle : PET.sleep;
-    pet.el.style.backgroundImage = "url(" + sheet + ")";
-    pet.el.style.backgroundSize = (n * 100) + "% 100%";
-    pet.el.style.backgroundPosition = (pet.f / (n - 1) * 100) + "% 0";
+    if (!pet.el || !pet.el.getContext) return;
+    var img = pet.mode === "idle" ? PET_IMG.idle : PET_IMG.sleep;
+    if (!img.complete || !img.naturalWidth) return;   // 還沒載好就保留上一格，不畫空白
+    var n = pet.mode === "idle" ? PET.idle : PET.sleep, fw = img.naturalWidth / n, f = Math.max(0, Math.min(n - 1, Math.round(pet.f)));
+    var ctx = pet.el.getContext("2d"), c = pet.el;
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, f * fw, 0, fw, img.naturalHeight, 0, 0, c.width, c.height);
   }
   function tickPet() {
     if (!pet.el || !document.body.contains(pet.el) || document.hidden) return;
