@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Couple Garden 情侶花園</title>
-<meta name="app-version" content="27">
+<meta name="app-version" content="28">
 <meta name="theme-color" content="#010101">
 <meta name="color-scheme" content="dark">
 <meta name="darkreader-lock">
@@ -290,9 +290,9 @@ input::placeholder { color: var(--ink-faint); }
 /* 花的卡片 */
 .fcard { position: relative; margin: 4px 0 2px; padding: 26px 22px 22px; border-radius: 20px; text-align: center; background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)); border: 1px solid rgba(255,255,255,.12); animation: cardin .6s cubic-bezier(.2,.9,.3,1) both; }
 .fcard.black { background: linear-gradient(180deg, rgba(170,140,255,.1), rgba(255,255,255,.02)); }
-.fc-bloom { width: 130px; height: 128px; margin: 0 auto 6px; background: url(rose-red.png?v=27) center / contain no-repeat; filter: drop-shadow(0 6px 18px rgba(255,90,110,.35)); animation: bloomin .9s .15s cubic-bezier(.2,1.4,.4,1) both; }
-.fc-bloom.blue { background-image: url(rose-blue.png?v=27); filter: drop-shadow(0 6px 18px rgba(90,140,240,.35)); }
-.fc-bloom.black { background-image: url(rose-black.png?v=27); filter: drop-shadow(0 6px 18px rgba(170,140,255,.4)); }
+.fc-bloom { width: 130px; height: 128px; margin: 0 auto 6px; background: url(rose-red.png?v=28) center / contain no-repeat; filter: drop-shadow(0 6px 18px rgba(255,90,110,.35)); animation: bloomin .9s .15s cubic-bezier(.2,1.4,.4,1) both; }
+.fc-bloom.blue { background-image: url(rose-blue.png?v=28); filter: drop-shadow(0 6px 18px rgba(90,140,240,.35)); }
+.fc-bloom.black { background-image: url(rose-black.png?v=28); filter: drop-shadow(0 6px 18px rgba(170,140,255,.4)); }
 .fc-no { font-family: 'Instrument Serif', var(--font-display); font-style: italic; font-size: 34px; line-height: 1.1; }
 .fc-date { margin-top: 4px; font-size: 12px; letter-spacing: .2em; color: var(--ink-faint); }
 .fc-how { margin-top: 2px; font-size: 13px; letter-spacing: .08em; color: var(--ink-soft); }
@@ -316,7 +316,7 @@ input::placeholder { color: var(--ink-faint); }
 .pf.bigbloom .rose { filter: drop-shadow(0 0 14px rgba(255, 120, 140, .5)); }
 @media (prefers-reduced-motion: reduce) { .orb-fly, .orb-aura { animation: none; } }
 /* 苔蘚小精靈 */
-.pet { position: absolute; background-repeat: no-repeat; pointer-events: auto; cursor: pointer; transform-origin: 50% 100%; -webkit-tap-highlight-color: transparent; touch-action: pan-y; filter: brightness(.88) saturate(.9); }
+.pet { position: absolute; background-repeat: no-repeat; pointer-events: auto; cursor: pointer; transform-origin: 50% 100%; -webkit-tap-highlight-color: transparent; touch-action: pan-y; filter: brightness(.8) saturate(.88); }
 .pet.hop { animation: pethop .7s cubic-bezier(.3,.7,.4,1); }
 @keyframes pethop { 0% { transform: none; } 20% { transform: scale(1.06, .9); } 50% { transform: translateY(-22%) scale(.96, 1.06); } 80% { transform: scale(1.04, .95); } 100% { transform: none; } }
 @media (prefers-reduced-motion: reduce) { .pet.hop { animation: none; } }
@@ -327,10 +327,15 @@ input::placeholder { color: var(--ink-faint); }
   #ui .dock { bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) - 20px)); }   /* 貼近螢幕下緣，只留一點點距離 */
 }
 /* 瓶子裡的玫瑰 */
-.pf .rose { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: url(rose-red.png?v=27) center bottom / contain no-repeat; transform-origin: 50% 100%; filter: brightness(.92) drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
-.pf.blue .rose { background-image: url(rose-blue.png?v=27); }
-.pf.black .rose { background-image: url(rose-black.png?v=27); filter: brightness(.85) drop-shadow(0 0 5px rgba(180,150,255,.55)); }
+.pf .rose { position: absolute; top: 0; right: 0; bottom: 0; left: 0; background: url(rose-red.png?v=28) center bottom / contain no-repeat; transform-origin: 50% 100%; filter: brightness(.92) drop-shadow(0 2px 3px rgba(0,0,0,.5)); }
+.pf.blue .rose { background-image: url(rose-blue.png?v=28); }
+.pf.black .rose { background-image: url(rose-black.png?v=28); filter: brightness(.85) drop-shadow(0 0 5px rgba(180,150,255,.55)); }
 .log li.black .what b { color: #c9b2ff; }
+/* 讓花和小精靈融進瓶子：頂光、底部暗、玻璃反光在最上層 */
+#orb-layer .orb-haze { position: absolute; border-radius: 50%; pointer-events: none; z-index: 100001;
+  background: radial-gradient(ellipse 55% 45% at 50% 8%, rgba(255, 244, 220, .07), transparent 70%), linear-gradient(to bottom, transparent 45%, rgba(0, 0, 0, .22) 80%, rgba(0, 0, 0, .35)); }
+#orb-layer .orb-glass { position: absolute; pointer-events: none; z-index: 100002; opacity: .85; }
+.novideo .orb-glass, .novideo .orb-haze { display: none; }
 </style>
 </head>
 <body>
@@ -352,7 +357,7 @@ input::placeholder { color: var(--ink-faint); }
 <div id="sheet-root"></div>
 <div id="toast-root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=27"></script>
-<script src="app.js?v=27"></script>
+<script src="config.js?v=28"></script>
+<script src="app.js?v=28"></script>
 </body>
 </html>
