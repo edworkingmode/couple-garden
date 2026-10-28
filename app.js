@@ -180,6 +180,7 @@
     dim.style.left = (o.cx - o.rx * 0.97) + "px"; dim.style.top = (o.cy - o.ry * 0.97) + "px"; dim.style.width = (o.rx * 1.94) + "px"; dim.style.height = (o.ry * 1.94) + "px";
     var bx = o.cx, by = o.cy + 0.39 * o.ry, hw = 0.8 * o.rx, hh = 0.26 * o.ry;
     if (!n) {
+      addPet(layer, bx, by, o);
       layer.appendChild(el("div", { class: "orb-hint", style: "left:" + o.cx + "px;top:" + (o.cy - 0.12 * o.ry) + "px", text: "第一朵花，等著被種下" }));
       addFront(layer, o);
       return;
@@ -194,7 +195,7 @@
         jx: (seeded(i + 90) - 0.5) * hF * 0.5, jy: wrap * 3 + (seeded(i + 91) - 0.5) * hF * 0.3 };
       var isNew = !!(fresh && fresh[d.id]);
       var f = photoFlower(i + seedOff, isNew, S0, ATLAS[d.kind === "black" ? "black" : color]);
-      if (isNew) { f.style.animationDelay = (bloomIdx++ * 0.25) + "s"; animated[d.id] = 1; }
+      if (isNew) { f.style.animationDelay = (bloomIdx++ * 0.25) + "s"; animated[d.id] = 1; setTimeout(pokePet, 1400); }
       f.addEventListener("click", function () {
         if (spin.moved) return;
         f.classList.add("picked"); setTimeout(function () { f.classList.remove("picked"); }, 900); openEntry(d, i + 1);
@@ -217,11 +218,56 @@
     };
     spin.place();
     grow(layer, o, list.filter(function (d) { return d.kind !== "black"; }).length, bx, by, hw, hh, S0, color);
+    addPet(layer, bx, by, o);
     var grab = el("div", { class: "orb-grab", "aria-hidden": "true" });
     grab.style.left = (o.cx - o.rx) + "px"; grab.style.top = (o.cy - o.ry) + "px"; grab.style.width = (o.rx * 2) + "px"; grab.style.height = (o.ry * 2) + "px";
     layer.insertBefore(grab, layer.firstChild);
     spin.bind(layer, o.rx);
     addFront(layer, o);
+  }
+  // 苔蘚小精靈：坐在瓶子中間的土上。待機會呼吸、晃小芽，放著不管會睡著，點一下就醒來跳一下
+  var PET = { w: 151, h: 180, idle: 25, sleep: 30 };
+  var pet = { el: null, mode: "idle", f: 0, dir: 1, idleSince: Date.now(), timer: null };
+  function addPet(layer, bx, by, o) {
+    var H = Math.round(o.ry * 0.6), W = Math.round(H * PET.w / PET.h);
+    var p = el("div", { class: "pet", role: "button", "aria-label": "苔蘚小精靈" });
+    p.style.width = W + "px"; p.style.height = H + "px";
+    var footY = by + (o.ry * 0.26) * 0.45;   // 坐在苔蘚前半部，大部分的花在牠後面
+    p.style.left = (bx - W / 2) + "px"; p.style.top = (footY + H * 0.06 - H) + "px";
+    p.style.zIndex = String(Math.round(footY));
+    p.addEventListener("click", function () { if (!spin.moved) pokePet(); });
+    layer.appendChild(p);
+    pet.el = p; drawPet();
+    if (!pet.timer) pet.timer = setInterval(tickPet, 110);
+  }
+  function drawPet() {
+    if (!pet.el) return;
+    var sheet = pet.mode === "idle" ? "pet-idle.webp" : "pet-sleep.webp", n = pet.mode === "idle" ? PET.idle : PET.sleep;
+    pet.el.style.backgroundImage = "url(" + sheet + ")";
+    pet.el.style.backgroundSize = (n * 100) + "% 100%";
+    pet.el.style.backgroundPosition = (pet.f / (n - 1) * 100) + "% 0";
+  }
+  function tickPet() {
+    if (!pet.el || !document.body.contains(pet.el) || document.hidden) return;
+    if (pet.mode === "idle") {
+      pet.f += pet.dir;
+      if (pet.f >= PET.idle - 1 || pet.f <= 0) pet.dir = -pet.dir;   // 來回播，接得很順
+      if (Date.now() - pet.idleSince > 25000) { pet.mode = "falling"; pet.f = 0; }
+    } else if (pet.mode === "falling") {
+      if (pet.f < PET.sleep - 1) pet.f++; else pet.mode = "asleep";
+    } else if (pet.mode === "waking") {
+      if (pet.f > 0) pet.f -= 2; else { pet.f = 0; pet.mode = "idle"; pet.idleSince = Date.now(); hopPet(); }
+      pet.f = Math.max(0, pet.f);
+    }
+    drawPet();
+  }
+  function hopPet() {
+    if (!pet.el) return;
+    pet.el.classList.remove("hop"); void pet.el.offsetWidth; pet.el.classList.add("hop");
+  }
+  function pokePet() {
+    if (pet.mode === "asleep" || pet.mode === "falling") pet.mode = "waking";
+    else { pet.idleSince = Date.now(); hopPet(); }
   }
   // 瓶子隨花朵數量長大：10 朵起瓶裡有螢火蟲、30 朵苔蘚發光、50 朵中間開一朵大花
   function grow(layer, o, n, bx, by, hw, hh, S0, color) {
@@ -246,8 +292,8 @@
     if (n >= 50) {
       var big = photoFlower(777, false, S0 * 2.1, ATLAS[color]);
       big.classList.add("bigbloom");
-      big.style.left = (bx - S0 * 1.05) + "px"; big.style.top = (by + hh * 0.1 - big._H) + "px";
-      big.style.zIndex = String(Math.round(by + hh * 0.1));
+      big.style.left = (bx + hw * 0.45 - S0 * 1.05) + "px"; big.style.top = (by - hh * 0.55 - big._H) + "px";   // 開在小精靈的右後方
+      big.style.zIndex = String(Math.round(by - hh * 0.55));
       big.style.pointerEvents = "none";
       layer.appendChild(big);
     }
