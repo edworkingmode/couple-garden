@@ -16,8 +16,8 @@
   ];
   var ATLAS = { red: "", blue: " blue", black: " black" };
   var ASSETS = {
-    full: { video: "", front: "front.webp", start: "bowl.jpg", end: "bowl.jpg", w: 1376, h: 768, orb: { cx: 0.4982, cy: 0.6081, rx: 0.1857, ry: 0.3229 } },
-    mobile: { video: "", front: "front-m.webp", start: "bowl-m.jpg", end: "bowl-m.jpg", w: 768, h: 1376, orb: { cx: 0.4974, cy: 0.5193, rx: 0.3177, ry: 0.1755 } }
+    full: { video: "", front: "front.webp", glass: "glass.webp", start: "bowl.jpg", end: "bowl.jpg", w: 1376, h: 768, orb: { cx: 0.4982, cy: 0.6081, rx: 0.1857, ry: 0.3229 } },
+    mobile: { video: "", front: "front-m.webp", glass: "glass-m.webp", start: "bowl-m.jpg", end: "bowl-m.jpg", w: 768, h: 1376, orb: { cx: 0.4974, cy: 0.5193, rx: 0.3177, ry: 0.1755 } }
   };
   var ASSET = (window.innerWidth <= 700 && window.innerHeight > window.innerWidth) ? ASSETS.mobile : ASSETS.full;
   var VID = { w: ASSET.w, h: ASSET.h }, ORB = ASSET.orb;
@@ -206,7 +206,8 @@
         var dp = Math.max(0, Math.min(1, (y - (by - hh)) / (2 * hh)));
         it.f.style.left = (x - it.f._W / 2) + "px"; it.f.style.top = (y - it.f._H) + "px";
         it.f.style.scale = (0.86 + 0.28 * dp).toFixed(3);
-        it.f.style.opacity = (0.72 + 0.28 * dp).toFixed(2);
+        it.f.style.opacity = "1";
+        it.f.style.filter = "brightness(" + (0.55 + 0.4 * dp).toFixed(2) + ")" + (dp < 0.45 ? " blur(" + ((0.45 - dp) * 2.2).toFixed(2) + "px)" : "");   // 後排比較暗、比較糊（景深）
         it.f.style.zIndex = String(Math.round(y));
         if (it.f.classList.contains("new")) it.f.style.setProperty("--drop", Math.round((o.cy - o.ry * 0.9) - y) + "px");
       });
@@ -330,11 +331,16 @@
   };
   // 前排青苔遮罩：花長在青苔裡，而不是貼在畫面上
   function addFront(layer, o) {
-    var img = el("img", { class: "orb-front", src: ASSET.front, alt: "", "aria-hidden": "true" });
-    img.style.left = (o.cx - o.rx) + "px"; img.style.top = (o.cy - o.ry) + "px";
-    img.style.width = (o.rx * 2) + "px"; img.style.height = (o.ry * 2) + "px";
-    layer.appendChild(img);
+    var box = function (n) {
+      n.style.left = (o.cx - o.rx) + "px"; n.style.top = (o.cy - o.ry) + "px";
+      n.style.width = (o.rx * 2) + "px"; n.style.height = (o.ry * 2) + "px";
+      layer.appendChild(n);
+    };
+    box(el("img", { class: "orb-front", src: ASSET.front, alt: "", "aria-hidden": "true" }));
+    box(el("div", { class: "orb-haze", "aria-hidden": "true" }));      // 瓶子裡的頂光和底部陰影
+    box(el("img", { class: "orb-glass", src: ASSET.glass + "?v=28", alt: "", "aria-hidden": "true" }));   // 玻璃反光蓋在最上面：花和小精靈才會在玻璃後面
   }
+
   function glowOrb(black) {
     var o = orbGeom(), n = el("div", { class: "orb-glow" + (black ? " blue" : "") });
     n.style.left = (o.cx - o.rx) + "px"; n.style.top = (o.cy - o.ry) + "px"; n.style.width = (o.rx * 2) + "px"; n.style.height = (o.ry * 2) + "px";
