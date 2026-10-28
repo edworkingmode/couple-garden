@@ -37,16 +37,23 @@ def decontaminate(rgb, mask):
     a = np.asarray(mask).astype(np.float32) / 255
     # 眼睛這種身體裡的暗處補成不透明
     solid = Image.fromarray(((a > 0.5) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(15)).filter(ImageFilter.MinFilter(19))
-    a = np.maximum(a, np.asarray(solid.filter(ImageFilter.GaussianBlur(2))).astype(np.float32) / 255)
+    fill = np.asarray(solid.filter(ImageFilter.GaussianBlur(2))).astype(np.float32) / 255
+    ys = np.where((a > 0.5).any(axis=1))[0]
+    top = ys.min() + int((ys.max() - ys.min()) * 0.3)   # 只補身體（眼睛那一段），頭頂小芽的葉縫不要補
+    fill[:top] = 0
+    a = np.maximum(a, fill)
     core = (a > 0.95).astype(np.float32)
     c = np.asarray(rgb).astype(np.float32)
     blur = lambda x: np.asarray(Image.fromarray(np.clip(x, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(6))).astype(np.float32)
     w = blur(core * 255) / 255 + 1e-4
     fill = np.dstack([blur(c[..., k] * core) / 255 / w * 255 for k in range(3)])
-    mix = np.clip((0.9 - a) / 0.5, 0, 1)[..., None]
+    mix = np.clip((0.97 - a) / 0.4, 0, 1)[..., None]
     out = c * (1 - mix) + fill * mix
     # 邊緣再收一點，去掉最外圈的暗霧
-    a2 = np.clip((a - 0.25) / 0.75, 0, 1)
+    a2 = np.clip((a - 0.5) / 0.5, 0, 1)
+    # 再往內收 2px，最外圈帶黑的毛邊整個不要
+    a2 = np.minimum(a2, np.asarray(Image.fromarray((a2 * 255).astype(np.uint8)).filter(ImageFilter.MinFilter(5)).filter(ImageFilter.GaussianBlur(1.2))).astype(np.float32) / 255 * 1.15)
+    a2 = np.clip(a2, 0, 1)
     return Image.fromarray(np.dstack([np.clip(out, 0, 255), a2 * 255]).astype(np.uint8), "RGBA")
 
 idle = frames(sys.argv[1], keep=set(range(0, 25)))   # 最後幾格開始閉眼，不要
