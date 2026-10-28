@@ -91,6 +91,7 @@
   function closeSheet() {
     document.getElementById("sheet-root").textContent = "";
     if (sheetOnClose) { var f = sheetOnClose; sheetOnClose = null; f(); }
+    if (hubOn !== "home") setHub("home");
     if (cardQueue.length) { var nx = cardQueue.shift(); setTimeout(nx, 350); }
   }
   function openPanel(kids) {
@@ -260,7 +261,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=47"; PET_IMG.sleep.src = "pet-sleep.webp?v=47";
+  PET_IMG.idle.src = "pet-idle.webp?v=48"; PET_IMG.sleep.src = "pet-sleep.webp?v=48";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -487,26 +488,22 @@
   }
 
   // ---------- 面板：花、待處理、紀錄 ----------
-  // 新手導覽：每一步說明一個功能，並把下方工具列切到那一頁（page：0 天數、1 種花、2 互動、3 我們）
+  // 新手導覽：每一步說明一個功能，並讓下方工具列對應的分頁亮起來（tab：act 互動、mem 回憶、mine 我的）
   var INTRO = [
     { icon: "🌱", t: "歡迎來到你們的花園", d: "這是兩個人一起照顧的瓶子。每當對方為你做了一件事、或你做到一件想讓對方知道的事，就種下一朵花，寫下它的意義。花會一朵一朵長滿瓶子，變成你們的回憶。" },
-    { icon: "💌", t: "每天報平安", d: "上方的小膠囊就是報平安。每天點一下，選個心情、說一句話，讓對方知道你平安。兩個人都報了，連續天數就會 +1。" },
-    { icon: "🌹", t: "申請一朵花", page: 1, d: "下方工具列往左滑到「種花」頁，按「申請一朵花」，寫下這朵花的意義，例如「今天有好好吃三餐」。一天最多申請 3 次。" },
-    { icon: "✅", t: "對方確認，花才會種下", page: 2, d: "你的申請會出現在對方「互動」頁的「待處理」。對方確認後，花就會從瓶口落下，長在你的苔蘚上。對方的申請也會出現在你的待處理，記得也幫對方確認。" },
-    { icon: "💐", t: "主動送花", d: "點最上面對方的名字，切到對方的瓶子，在「種花」頁按「送一朵花」，不用確認，直接種進對方的瓶子。你送的花是你選的顏色，可以在設定裡換。" },
-    { icon: "🖤", t: "小黑花", page: 1, d: "對方做了不太好的事（例如又熬夜），可以在「種花」頁給一朵小黑花。收到的人可以申訴一次，或用 3 朵花把它贖回。" },
-    { icon: "🎁", t: "用花換獎勵", page: 2, d: "在「互動」頁的「獎勵」，你可以幫對方開獎勵，例如「20 朵：見面請你吃大餐」。對方的花夠了就能兌換，你確認後成立。兌換不會讓瓶子裡的花變少。" },
-    { icon: "📖", t: "花花圖書館", page: 2, d: "「互動」頁的「圖書館」依月份收著每一朵花和它的話。點瓶子裡的任何一朵花，也能看到那天寫下的內容。" },
-    { icon: "📅", t: "天數與紀念日", page: 0, d: "最左邊的「天數」頁會顯示見面倒數、在一起幾天。到「我們」頁的「紀念日」填日期、新增生日或交往紀念日，也能自己選要顯示哪幾個。" },
-    { icon: "🫧", t: "小精靈、想你、通知", page: 2, d: "瓶子中間的苔蘚小精靈放著會睡著，點牠就會醒來。想對方時按「想你」，對方的瓶子會亮一下。iPhone 把網站「加入主畫面」後，到「我們 → 設定」開啟通知，就不會錯過對方的花。" }
+    { icon: "📌", t: "上方的「今天」小卡", d: "瓶子上方的小卡會提醒你現在最該做的一件事：有東西等你確認、今天還沒報平安、對方欠你的獎勵券。點它就會直接帶你過去。都做完了，它就顯示兩個人今天的報平安。" },
+    { icon: "🌹", t: "申請一朵花", tab: "act", d: "下方工具列點「互動」，按「申請一朵花」，寫下這朵花的意義，例如「今天有好好吃三餐」。對方確認後，花會從瓶口落下，種進你的瓶子。一天最多申請 3 次。" },
+    { icon: "💐", t: "送花、確認、想你", tab: "act", d: "同樣在「互動」：可以直接送對方一朵花（不用確認）、在「待處理」確認對方的申請、按「想你」讓對方的瓶子亮一下。有東西等你確認時，「互動」上會出現數字。" },
+    { icon: "🎁", t: "獎勵與小燈", tab: "act", d: "「互動」裡的「獎勵」可以幫對方開獎勵，例如「20 朵：見面請你吃大餐」。對方兌換、你確認後會變成一張券；真的做到後按「收到了」，瓶子裡會點亮一盞小燈。" },
+    { icon: "🖤", t: "小黑花", tab: "act", d: "對方做了不太好的事（例如又熬夜），可以在「互動」最下面給一朵小黑花。收到的人可以申訴一次，或用花把它贖回。" },
+    { icon: "📖", t: "回憶", tab: "mem", d: "工具列的「回憶」收著花花圖書館（每一朵花和它的話）、紀念日和報平安紀錄。點瓶子裡的任何一朵花，也能看到那天寫下的內容。" },
+    { icon: "⚙️", t: "我的", tab: "mine", d: "暱稱、時區、花色、通知、首頁要顯示哪些天數，都在「我的」。這份使用說明也在這裡，隨時可以再看一次。" },
+    { icon: "🫧", t: "看對方的瓶子", d: "點最上面對方的名字，就能看對方的瓶子。瓶子中間的苔蘚小精靈放著會睡著，點牠就會醒來。iPhone 把網站「加入主畫面」後，到「我的 → 設定」開啟通知，就不會錯過對方的花。" }
   ];
-  function introPage(n) {
-    var pages = document.querySelector(".dock .pages");
-    if (pages && n != null) pages.scrollTo({ left: n * pages.clientWidth, behavior: "smooth" });
-  }
+  function introPage(tab) { setHub(tab || "home"); }
   function showIntro(i) {
     var last = i === INTRO.length - 1, st = INTRO[i];
-    introPage(st.page);
+    introPage(st.tab);
     openPanel([
       el("div", { class: "introbar" }, INTRO.map(function (_, k) { return el("span", { class: k <= i ? "on" : "" }); })),
       el("div", { class: "introicon", text: st.icon }),
@@ -514,7 +511,7 @@
       el("p", { class: "legend", style: "font-size:15px;line-height:1.75;color:var(--ink-soft)", text: st.d }),
       el("div", { class: "row" }, [
         i > 0 ? el("button", { class: "btn ghost", text: "上一步", onclick: function () { showIntro(i - 1); } }) : el("button", { class: "btn ghost", text: "跳過", onclick: closeSheet }),
-        el("button", { class: "btn primary", text: last ? "開始種花" : "下一步（" + (i + 2) + "/" + INTRO.length + "）", onclick: function () { if (last) { closeSheet(); introPage(1); } else showIntro(i + 1); } })
+        el("button", { class: "btn primary", text: last ? "開始種花" : "下一步（" + (i + 2) + "/" + INTRO.length + "）", onclick: function () { if (last) closeSheet(); else showIntro(i + 1); } })
       ])
     ]);
   }
@@ -701,6 +698,87 @@
   function decideClaim(c, ok, reply) {
     closeSheet();
     act(function () { return sb.from("cg_reward_claims").update({ status: ok ? "confirmed" : "rejected", reply: reply || "" }).eq("id", c.id); }, ok ? "兌換成立 🎁" : "已退回");
+  }
+  // ---------- 工具列的三個功能清單 ----------
+  // 每個功能只放一個地方：互動＝跟對方一起做的事、回憶＝看過去、我的＝設定與說明
+  var hubOn = "home";
+  function hubBtn(icon, title, desc, onclick, badge, cls) {
+    return el("button", { class: "hubbtn" + (cls ? " " + cls : ""), onclick: onclick }, [
+      el("span", { class: "hb-ico", text: icon }),
+      el("span", { class: "hb-t" }, [el("b", { text: title }), el("span", { text: desc })]),
+      badge ? el("span", { class: "badge", text: String(badge) }) : null
+    ]);
+  }
+  function startRequest() {
+    if (!partner) { toast("等對方加入後才能申請"); return; }
+    if (REQ_PER_DAY - reqsToday().length <= 0) { toast("今天已經申請 " + REQ_PER_DAY + " 次了，明天再來"); return; }
+    openInput("申請一朵花", "這朵花的意義，例如：今天有好好吃三餐", "送出申請", requestFlower, true);
+  }
+  function startGive() {
+    if (!partner) { toast("等對方加入後才能送"); return; }
+    openInput("送" + nick(partner) + "一朵花", "這朵花的意義，例如：謝謝你今天陪我", "送出", giveFlower, true);
+  }
+  function startBlack() {
+    if (!partner) { toast("等對方加入後才能給"); return; }
+    openInput("給" + nick(partner) + "一朵小黑花", "原因，例如：又熬夜不睡", "給", giveBlack, true);
+  }
+  function openHub(key) {
+    var pn = partner ? nick(partner) : "對方", kids;
+    if (key === "act") {
+      var pend = myPending(), owed = tickets().filter(function (c) { return c.owner === me.id; }).length, left = Math.max(0, REQ_PER_DAY - reqsToday().length);
+      kids = [el("h2", { text: "互動" }),
+        el("div", { class: "hubgrid" }, [
+          hubBtn("🌹", "申請一朵花", "做到一件事，請" + pn + "確認後種進你的瓶子（今天還能 " + left + " 次）", startRequest, 0, "big"),
+          hubBtn("💐", "送" + pn + "一朵花", "不用確認，直接種進" + pn + "的瓶子", startGive, 0, "big"),
+          hubBtn("✅", "待處理", pend.length ? pend.length + " 件等你確認" : "目前沒有要確認的", openPending, pend.length),
+          hubBtn("💗", "想你", "讓" + pn + "的瓶子亮一下", function () { closeSheet(); sendMiss(); }),
+          hubBtn("🎁", "獎勵", "用花換" + pn + "開的獎勵，也幫對方開獎勵", openRewards),
+          tickets().length ? hubBtn("🎟️", "待兌現的券", owed ? pn + "欠你 " + owed + " 張" : "你欠" + pn + "的券", openTickets) : null,
+          hubBtn("🖤", "給" + pn + "小黑花", "對方可以申訴，或用花贖回", startBlack, 0, "dim")
+        ])];
+    } else if (key === "mem") {
+      var st = dayStats(new Date());
+      kids = [el("h2", { text: "回憶" }),
+        st.length ? el("div", { class: "stats hubstats" }, st.map(function (x) { return el("button", { class: "stat" + (x.cls || ""), onclick: openUs }, [el("b", { text: x.n }), el("span", { text: x.label })]); })) : null,
+        el("div", { class: "hubgrid" }, [
+          hubBtn("📖", "花花圖書館", "每一朵花和它的話，依月份收好", function () { libTab = "in"; openLibrary(); }),
+          hubBtn("📅", "紀念日", "在一起、認識、生日、下次見面", openUs),
+          partner ? hubBtn("💌", "報平安紀錄", "今天和最近 7 天", openCheckinView) : null
+        ])];
+    } else {
+      kids = [el("h2", { text: "我的" }),
+        el("div", { class: "hubgrid" }, [
+          hubBtn("⚙️", "設定", "暱稱、時區、花色、通知、配對", openSettings),
+          hubBtn("🔢", "首頁要顯示的天數", "選要在首頁看到哪些天數", openUs),
+          hubBtn("🧭", "使用說明", "重新看一次所有功能怎麼用", function () { showIntro(0); })
+        ])];
+    }
+    openPanel(kids);
+    setHub(key);
+  }
+  function setHub(key) {
+    hubOn = key;
+    [].forEach.call(document.querySelectorAll(".dock [data-hub]"), function (b) { b.classList.toggle("on", b.getAttribute("data-hub") === key); });
+  }
+  // 主畫面的「今天」小卡：一次只提醒最該做的一件事，沒事就顯示兩個人今天的報平安
+  function todayCard(pend) {
+    var owed = tickets().filter(function (c) { return c.owner === me.id; }).length, a = myCheckin();
+    var todo = [];
+    if (pend.length) todo.push({ t: "🔔 " + pend.length + " 件等你確認", go: openPending });
+    if (!a) todo.push({ t: "💌 今天還沒報平安，點我", go: openCheckin });
+    if (owed) todo.push({ t: "🎟️ " + nick(partner) + "欠你 " + owed + " 張券", go: openTickets });
+    if (!todo.length) return checkinLine();
+    checkinLine();   // 照常檢查連續天數的慶祝卡
+    var first = todo[0];
+    return el("button", { class: "checkline todo", onclick: first.go }, [
+      el("span", { class: "streak", text: first.t }),
+      todo.length > 1 ? el("span", { class: "more", text: "還有 " + (todo.length - 1) + " 件" }) : null
+    ]);
+  }
+  // 首頁的天數一行（原本在工具列第一頁）
+  function daysLine(stats) {
+    if (!stats.length) return el("button", { class: "daysline", onclick: openUs, text: "＋ 設定紀念日" });
+    return el("button", { class: "daysline", onclick: openUs }, stats.slice(0, 3).map(function (x) { return el("span", {}, [x.label + " ", el("b", { text: x.n })]); }));
   }
   // ---------- 待兌現的券 ----------
   // 兌換成立後，獎勵還沒真的發生：主畫面留一張券提醒兩個人，兌換的人收到後按「收到了」，瓶子裡多一盞小燈
@@ -1233,9 +1311,6 @@
     // 天數、見面倒數、兩地時間
     // 天數卡片：見面倒數、在一起、認識（最多 3 張）
     var now = new Date(), stats = dayStats(now);
-    var statRow = stats.length
-      ? el("div", { class: "stats" }, stats.map(function (x) { return el("button", { class: "stat" + (x.cls || ""), onclick: openUs }, [el("b", { text: x.n }), el("span", { text: x.label })]); }))
-      : el("div", { class: "stats" }, [el("button", { class: "stat setup", onclick: openUs }, [el("b", { text: "＋" }), el("span", { text: "設定紀念日" })])]);
     var tzLine = partner && partner.tz && partner.tz !== me.tz ? clockText(me) + "　·　" + clockText(partner) : "";
 
     var tabs = el("div", { class: "gtabs", role: "tablist" }, [["me", me], ["partner", partner]].map(function (pair) {
@@ -1259,8 +1334,8 @@
         el("span", {}, ["本週 ", el("b", { text: String(g.week) }), " 朵"]),
         el("span", { class: "blk" }, ["小黑花 ", el("b", { text: String(g.blacks.length) }), " 朵"])
       ]),
-      partner ? checkinLine() : null,
-      partner ? ticketLine() : null,
+      partner ? todayCard(pend) : null,
+      daysLine(stats),
       tzLine ? el("p", { class: "caption", text: tzLine }) : null,
       !partner ? el("div", { class: "invite" }, [
         el("p", { class: "invite-t", text: "還差一步：邀請另一半加入" }),
@@ -1270,52 +1345,18 @@
       ]) : null
     ]));
 
-    // 工具列第二頁：種一朵花。沒有固定任務，每一朵都由兩人寫下它的意義
-    var page1 = el("div", { class: "page" });
-    if (mineView) {
-      var leftReq = REQ_PER_DAY - reqsToday().length;
-      page1.appendChild(el("button", { class: "mbtn wide", onclick: function () {
-        if (!partner) { toast("等對方加入後才能申請"); return; }
-        if (leftReq <= 0) { toast("今天已經申請 " + REQ_PER_DAY + " 次了，明天再來"); return; }
-        openInput("申請一朵花", "這朵花的意義，例如：今天有好好吃三餐", "送出申請", requestFlower, true);
-      } }, [el("span", { class: "name", text: "申請一朵花" }), el("span", { class: "state", text: partner ? nick(partner) + "確認後種下" : "等對方加入" })]));
-    } else {
-      page1.appendChild(el("button", { class: "mbtn wide", onclick: function () {
-        if (!partner) return;
-        openInput("送" + nick(partner) + "一朵花", "這朵花的意義，例如：謝謝你今天陪我", "送出", giveFlower, true);
-      } }, [el("span", { class: "name", text: "送" + (partner ? nick(partner) : "對方") + "一朵花" }), el("span", { class: "state", text: "直接種進對方的瓶子" })]));
-    }
-    page1.appendChild(el("button", { class: "mbtn wide blackbtn", onclick: function () {
-      if (!partner) { toast("等對方加入後才能給"); return; }
-      openInput("給" + nick(partner) + "一朵小黑花", "原因，例如：又熬夜不睡", "給", giveBlack, true);
-    } }, [el("span", { class: "name", text: "給" + (partner ? nick(partner) : "對方") + "小黑花" }), el("span", { class: "state", text: "對方可以申訴或用花贖回" })]));
-
-    // 第二頁：互動
+    // 工具列：四個固定分頁。花園＝主畫面，其他三個各打開一個功能清單
     var ico = function (d) { return svg("svg", { viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "1.6", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" }, [svg("path", { d: d })]); };
-    var page2 = el("div", { class: "page" });
-    page2.appendChild(el("button", { class: "tab", onclick: openPending }, [ico("M5 12.5l4.5 4.5L19 7.5"), "待處理", pend.length ? el("span", { class: "badge", text: String(pend.length) }) : null]));
-    page2.appendChild(el("button", { class: "tab", onclick: openRewards }, [ico("M4 11h16v9H4zM3 7h18v4H3zM12 7v13M12 7c-2-4-6-3-5 0M12 7c2-4 6-3 5 0"), "獎勵"]));
-    page2.appendChild(el("button", { class: "tab", onclick: sendMiss }, [ico("M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"), "想你"]));
-    page2.appendChild(el("button", { class: "tab", onclick: function () { libTab = "in"; openLibrary(); } }, [ico("M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4zM5 16a4 4 0 0 1 4-4h10"), "圖書館"]));
-
-    // 第三頁：我們、設定
-    var page3 = el("div", { class: "page" });
-    page3.appendChild(el("button", { class: "tab", onclick: openUs }, [ico("M7 3v3M17 3v3M4 8h16M5 5h14v15H5z"), "紀念日"]));
-    page3.appendChild(el("button", { class: "tab", onclick: openSettings }, [ico("M12 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7M4 12h2M18 12h2M12 4v2M12 18v2"), "設定"]));
-
-    var page0 = el("div", { class: "page" }, [statRow]);
-    var pages = el("div", { class: "pages" }, [page0, page1, page2, page3]);
-    var dots = el("div", { class: "dots2" });
-    var dotEls = [0, 1, 2, 3].map(function (n) {
-      var d = el("button", { class: "dot2" + (n === dockPage ? " on" : "") + (n === 2 && pend.length ? " alert" : ""), "aria-label": ["天數", "種花", "互動", "我們"][n], onclick: function () { pages.scrollTo({ left: n * pages.clientWidth, behavior: "smooth" }); } });
-      dots.appendChild(d); return d;
-    });
-    pages.addEventListener("scroll", function () {
-      var n = Math.round(pages.scrollLeft / Math.max(1, pages.clientWidth));
-      if (n !== dockPage) { dockPage = n; dotEls.forEach(function (d, k) { d.classList.toggle("on", k === n); }); }
-    }, { passive: true });
-    ui.appendChild(el("div", { class: "dock liquid-glass" }, [pages, dots]));
-    pages.scrollLeft = dockPage * pages.clientWidth;
+    var tabBtn = function (key, icon, label, badge) {
+      return el("button", { class: "tab" + (hubOn === key ? " on" : ""), "data-hub": key, onclick: function () { if (key === "home") { closeSheet(); if (view !== "me") switchView("me"); } else openHub(key); } },
+        [ico(icon), label, badge ? el("span", { class: "badge", text: String(badge) }) : null]);
+    };
+    ui.appendChild(el("div", { class: "dock liquid-glass tabs4" }, [el("div", { class: "page" }, [
+      tabBtn("home", "M4 11l8-7 8 7M6 9.5V20h12V9.5M10 20v-5h4v5", "花園"),
+      tabBtn("act", "M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z", "互動", pend.length),
+      tabBtn("mem", "M5 4h10a4 4 0 0 1 4 4v12H9a4 4 0 0 1-4-4zM5 16a4 4 0 0 1 4-4h10", "回憶"),
+      tabBtn("mine", "M12 12a4 4 0 1 0 0-8a4 4 0 0 0 0 8M4 21c0-4 4-6 8-6s8 2 8 6", "我的")
+    ])]));
 
     layoutVideo();
     renderOrb(g.inOrb, fresh, owner);
