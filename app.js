@@ -259,7 +259,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=41"; PET_IMG.sleep.src = "pet-sleep.webp?v=41";
+  PET_IMG.idle.src = "pet-idle.webp?v=42"; PET_IMG.sleep.src = "pet-sleep.webp?v=42";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -333,7 +333,7 @@
     };
     var front = el("img", { class: "orb-front", src: ASSET.front, alt: "", "aria-hidden": "true" });
     box(front);
-    front.style.zIndex = String(Math.round(o.cy + o.ry * 0.47));   // 比這條線更前面的花和小精靈畫在苔蘚上面
+    front.style.zIndex = String(Math.round(o.cy + o.ry * 0.1));   // 花和小精靈都畫在苔蘚上面；原本只讓前排在上面，後排的花會整朵被苔蘚蓋掉
     box(el("div", { class: "orb-haze", "aria-hidden": "true" }));      // 瓶子裡的頂光和底部陰影
     box(el("img", { class: "orb-glass", src: ASSET.glass + "?v=28", alt: "", "aria-hidden": "true" }));   // 玻璃反光蓋在最上面：花和小精靈才會在玻璃後面
   }
