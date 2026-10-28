@@ -24,7 +24,7 @@
 
   var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [];
   var view = "me", dockPage = 0, busy = false, loaded = false, poller = null, connText = "";
-  var sheetOnClose = null, cardQueue = [], seen = {}, shown = {}, animated = {}, cardShown = {};
+  var sheetOnClose = null, cardQueue = [], seen = {}, shown = {}, animated = {}, cardShown = {}, entered = false;
 
   // ---------- 小工具 ----------
   function el(tag, attrs, kids) {
@@ -589,6 +589,8 @@
     view = "me"; dockPage = 0; cardQueue = [];
     if (poller) { clearInterval(poller); poller = null; }
     document.getElementById("orb-layer").textContent = "";
+    var bnx = document.getElementById("bignum"); if (bnx) bnx.parentNode.removeChild(bnx);
+    entered = false;
     renderAuth("in");
   }
 
@@ -650,7 +652,10 @@
 
     ui.appendChild(el("div", { class: "top" }, [
       el("div", { class: "brand" }, ["Little Red Flower", el("small", { text: nick(me) })]),
-      el("span", { class: "conn", text: connText })
+      el("div", { class: "topr" }, [
+        el("span", { class: "conn", text: connText }),
+        needTiltPermission() && !lsGet("cg-tilt") ? el("button", { class: "tiltbtn", onclick: askTilt }, ["✦ 開啟景深"]) : null
+      ])
     ]));
 
     // 天數、見面倒數、兩地時間
@@ -669,17 +674,18 @@
       var dot = key === "partner" && pend.length ? el("span", { class: "gdot amber" }) : null;
       return el("button", { class: "gtab" + (view === key ? " on" : "") + (p && p.color === "blue" ? " blue" : ""), role: "tab", "aria-selected": view === key ? "true" : "false", disabled: p ? false : "", onclick: function () { switchView(key); } }, [p ? nick(p) : "等待加入", dot]);
     }));
-    var numEl = el("span", { class: "num", text: String(g.count) });
+    var unit = owner && owner.color === "blue" ? "朵小藍花" : "朵小紅花";
+    var bn = bigNum(), numEl = bn.querySelector(".bn-num");
+    bn.querySelector(".bn-unit").textContent = unit;
+    numEl.textContent = String(g.count);
     if (loaded) {
       var from = shown[view] == null ? (mineView ? g.count - freshCount : g.count) : shown[view];
-      if (from !== g.count) animateNum(numEl, from, g.count, shown[view] == null ? 700 : 150);
+      if (from !== g.count) animateNum(numEl, from, g.count, shown[view] == null ? 900 : 150);
       shown[view] = g.count;
     }
-    var unit = owner && owner.color === "blue" ? "朵小藍花" : "朵小紅花";
     ui.appendChild(el("div", { class: "hero" }, [
       tabs,
       statRow,
-      el("div", { class: "count" }, [numEl, el("span", { class: "unit", text: unit })]),
       el("div", { class: "chips" }, [
         el("span", {}, ["本週 ", el("b", { text: String(g.week) }), " 朵"]),
         el("span", { class: "blk" }, ["小黑花 ", el("b", { text: String(g.blacks.length) }), " 朵"])
@@ -746,6 +752,38 @@
 
     layoutVideo();
     renderOrb(g.inOrb, fresh, owner);
+    placeBigNum();
+    if (loaded && !entered) {
+      entered = true;
+      ui.classList.add("enter"); bn.classList.add("enter");
+      setTimeout(function () { ui.classList.remove("enter"); bn.classList.remove("enter"); }, 2200);
+    }
+  }
+  // 大字花數：超大斜體數字，下半部躲在玻璃球後面（球內只透出一點點）
+  function bigNum() {
+    var b = document.getElementById("bignum");
+    if (!b) {
+      b = el("div", { id: "bignum", "aria-hidden": "true" }, [el("span", { class: "bn-num" }), el("span", { class: "bn-unit" })]);
+      var st = document.getElementById("stage");
+      st.insertBefore(b, document.getElementById("orb-layer"));
+    }
+    return b;
+  }
+  function placeBigNum() {
+    var b = document.getElementById("bignum");
+    if (!b || !couple) return;
+    var o = orbGeom(), num = b.querySelector(".bn-num"), unit = b.querySelector(".bn-unit");
+    var hero = document.querySelector("#ui .hero"), hb = hero ? hero.getBoundingClientRect().bottom : 0;
+    var base = (o.cy - o.ry) + o.ry * 0.42;                       // 數字底部落在球裡 42% 的位置
+    var fs = Math.max(64, Math.min(window.innerWidth * 0.5, 300, (base - hb - 8) / 0.86));
+    num.style.fontSize = fs + "px";
+    num.style.left = o.cx + "px";
+    num.style.top = (base - fs * 0.86) + "px";
+    var w = num.getBoundingClientRect().width || fs;
+    unit.style.left = (o.cx + w / 2 + 6) + "px";
+    unit.style.top = (base - fs * 0.86 + fs * 0.12) + "px";
+    var m = "radial-gradient(ellipse " + (o.rx * 0.985) + "px " + (o.ry * 0.985) + "px at " + o.cx + "px " + o.cy + "px, rgba(0,0,0,.14) 0, rgba(0,0,0,.14) 97%, #000 100%)";
+    b.style.webkitMaskImage = m; b.style.maskImage = m;
   }
   function animateNum(node, from, to, delay) {
     var t0 = null, dur = 900;
@@ -780,6 +818,65 @@
     if (Math.abs(dx) > 60 && Math.abs(dy) < 50 && dt < 700) switchView(dx < 0 ? "partner" : "me");
   }, { passive: true });
 
+  // ---------- 螢火蟲與視差 ----------
+  // 背景（影片、玻璃球、花）移最少、大字中間、螢火蟲最多，做出前後景深
+  var par = { tx: 0, ty: 0, x: 0, y: 0, base: null, on: false };
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function onTilt(e) {
+    if (e.gamma == null || e.beta == null) return;
+    if (par.base === null) par.base = e.beta;
+    par.tx = Math.max(-1, Math.min(1, e.gamma / 25));
+    par.ty = Math.max(-1, Math.min(1, (e.beta - par.base) / 25));
+  }
+  function startTilt() { if (!par.on) { par.on = true; window.addEventListener("deviceorientation", onTilt); } }
+  function needTiltPermission() { return typeof DeviceOrientationEvent !== "undefined" && typeof DeviceOrientationEvent.requestPermission === "function"; }
+  function askTilt() {
+    DeviceOrientationEvent.requestPermission().then(function (st) { lsSet("cg-tilt", st); if (st === "granted") startTilt(); route(); }).catch(function () { lsSet("cg-tilt", "denied"); route(); });
+  }
+  if (!needTiltPermission() || lsGet("cg-tilt") === "granted") startTilt();
+  window.addEventListener("mousemove", function (e) {
+    par.tx = (e.clientX / window.innerWidth - 0.5) * 2; par.ty = (e.clientY / window.innerHeight - 0.5) * 2;
+  }, { passive: true });
+  var fx = document.createElement("canvas"); fx.id = "fx";
+  document.getElementById("stage").insertBefore(fx, document.getElementById("ui"));
+  var fxCtx = fx.getContext("2d"), flies = [], dpr = Math.min(1.5, window.devicePixelRatio || 1);
+  var glow = document.createElement("canvas"); glow.width = glow.height = 48;
+  (function () { var c = glow.getContext("2d"), gr = c.createRadialGradient(24, 24, 0, 24, 24, 24);
+    gr.addColorStop(0, "rgba(255,246,200,1)"); gr.addColorStop(0.18, "rgba(255,236,150,.9)"); gr.addColorStop(0.45, "rgba(214,232,120,.25)"); gr.addColorStop(1, "rgba(214,232,120,0)");
+    c.fillStyle = gr; c.fillRect(0, 0, 48, 48); })();
+  function sizeFx() {
+    var w = window.innerWidth, h = window.innerHeight;
+    fx.width = w * dpr; fx.height = h * dpr; fx.style.width = w + "px"; fx.style.height = h + "px";
+    var n = reduceMotion ? 0 : (w < 700 ? 16 : 26);
+    flies = [];
+    for (var i = 0; i < n; i++) flies.push({ x: Math.random() * w, y: h * (0.35 + Math.random() * 0.6), vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.18, z: 0.4 + Math.random() * 0.6, ph: Math.random() * 6.28, sp: 0.6 + Math.random() * 1.2 });
+  }
+  sizeFx();
+  window.addEventListener("resize", sizeFx);
+  var bgEls = ["bg", "still", "orb-layer"].map(function (id) { return document.getElementById(id); });
+  function frame(t) {
+    requestAnimationFrame(frame);
+    if (document.hidden) return;
+    par.x += (par.tx - par.x) * 0.06; par.y += (par.ty - par.y) * 0.06;
+    var bx = (-par.x * 6).toFixed(2), by = (-par.y * 6).toFixed(2);
+    bgEls.forEach(function (n) { if (n) n.style.transform = "translate(" + bx + "px," + by + "px)"; });
+    var b = document.getElementById("bignum"); if (b) b.style.transform = "translate(" + (-par.x * 12).toFixed(2) + "px," + (-par.y * 12).toFixed(2) + "px)";
+    var w = window.innerWidth, h = window.innerHeight;
+    fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0); fxCtx.clearRect(0, 0, w, h);
+    if (!couple) return;
+    for (var i = 0; i < flies.length; i++) {
+      var f = flies[i];
+      f.x += f.vx + Math.sin(t / 1700 + f.ph) * 0.12; f.y += f.vy + Math.cos(t / 2100 + f.ph) * 0.1;
+      if (f.x < -20) f.x = w + 20; if (f.x > w + 20) f.x = -20; if (f.y < h * 0.3) f.vy = Math.abs(f.vy); if (f.y > h - 20) f.vy = -Math.abs(f.vy);
+      var a = 0.25 + 0.75 * Math.pow((Math.sin(t / 1000 * f.sp + f.ph) + 1) / 2, 2.2);
+      var size = 10 + 16 * f.z;
+      fxCtx.globalAlpha = a * (0.55 + 0.45 * f.z);
+      fxCtx.drawImage(glow, f.x - par.x * 18 * f.z - size / 2, f.y - par.y * 18 * f.z - size / 2, size, size);
+    }
+    fxCtx.globalAlpha = 1;
+  }
+  requestAnimationFrame(frame);
+
   // ---------- 背景影片 ----------
   (function () {
     var v = document.getElementById("bg"), still = document.getElementById("still"), stage = document.getElementById("stage");
@@ -813,7 +910,7 @@
   }
   setTimeout(checkUpdate, 1500);
   document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") { checkUpdate(); if (me) refresh(); } });
-  window.addEventListener("resize", function () { layoutVideo(); if (couple && me) renderOrb(garden(viewOwner()).inOrb, null, viewOwner()); });
+  window.addEventListener("resize", function () { layoutVideo(); if (couple && me) { renderOrb(garden(viewOwner()).inOrb, null, viewOwner()); placeBigNum(); } });
   window.addEventListener("offline", function () { setConn("沒有網路"); });
   window.addEventListener("online", function () { setConn(""); if (me) refresh(); });
 
