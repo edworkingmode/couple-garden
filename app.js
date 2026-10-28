@@ -226,6 +226,14 @@
       });
     };
     spin.place();
+    if (/debug/.test(location.search + location.hash)) setTimeout(function () {   // 除錯用：網址最後加 #debug 會在畫面上列出每朵花的位置與狀態
+      var box = document.getElementById("dbg") || document.body.appendChild(el("pre", { id: "dbg", style: "position:fixed;left:4px;top:4px;right:4px;z-index:999999;background:rgba(0,0,0,.8);color:#9f9;font:10px monospace;white-space:pre-wrap;pointer-events:none" }));
+      var g = layer.getBoundingClientRect();
+      box.textContent = "n=" + n + " layer " + [g.x, g.y, g.width, g.height].map(Math.round) + " orb " + [o.cx, o.cy, o.rx, o.ry].map(Math.round) + "\n" + items.map(function (it) {
+        var r = it.f.getBoundingClientRect(), cs = getComputedStyle(it.f), rs = getComputedStyle(it.f.firstChild), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 3);
+        return it.d.kind + " " + [r.x, r.y, r.width, r.height].map(Math.round) + " z" + cs.zIndex + " op" + cs.opacity + " " + cs.display + " " + cs.animationName + " anim:" + (it.f.getAnimations ? it.f.getAnimations().map(function (a) { return a.playState; }) : "") + " bg:" + rs.backgroundImage.slice(-20) + " top:" + (hit ? hit.tagName + "." + hit.className : "-");
+      }).join("\n");
+    }, 2500);
     grow(layer, o, list.filter(function (d) { return d.kind !== "black"; }).length, bx, by, hw, hh, S0, color);
     addPet(layer, bx, by, o);
     addFront(layer, o);
@@ -259,7 +267,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=43"; PET_IMG.sleep.src = "pet-sleep.webp?v=43";
+  PET_IMG.idle.src = "pet-idle.webp?v=44"; PET_IMG.sleep.src = "pet-sleep.webp?v=44";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
