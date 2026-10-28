@@ -7,10 +7,22 @@ from PIL import Image, ImageDraw, ImageFilter
 H = 180  # 每格輸出高度（像素）
 
 def frames(path, keep=None):
-    im = Image.open(path); out = []
+    im = Image.open(path); raw = []
     for i in range(im.n_frames):
         if keep and i not in keep: continue
-        im.seek(i); out.append(im.convert("RGB"))
+        im.seek(i); raw.append(np.asarray(im.convert("RGB")).astype(np.float32))
+    # 1. 對齊：每一格依牠的亮部重心平移到跟第一格一樣，去掉鏡頭微晃
+    def center(a):
+        m = a.max(axis=2) > 60; ys, xs = np.where(m); return xs.mean(), ys.mean()
+    cx0, cy0 = center(raw[0]); al = []
+    for a in raw:
+        cx, cy = center(a); dx, dy = int(round(cx0 - cx)), int(round(cy0 - cy))
+        al.append(np.roll(np.roll(a, dy, axis=0), dx, axis=1))
+    # 2. 時間平滑：每格跟前後格混合，GIF 的抖色雜點就不會一閃一閃
+    out = []
+    for i in range(len(al)):
+        prev, nxt = al[max(0, i - 1)], al[min(len(al) - 1, i + 1)]
+        out.append(Image.fromarray(np.clip(al[i] * 0.5 + prev * 0.25 + nxt * 0.25, 0, 255).astype(np.uint8)))
     return out
 
 def mask_of(rgb):
