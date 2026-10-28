@@ -114,7 +114,7 @@
   }
 
   // ---------- 背景與玻璃球 ----------
-  var DOCK_GAP = 162;
+  var DOCK_GAP = 106;
   function vidLayout() {
     var stage = document.getElementById("stage");
     var vw = stage.clientWidth, vh = stage.clientHeight;
@@ -735,17 +735,18 @@
     page3.appendChild(el("button", { class: "tab", onclick: openUs }, [ico("M7 3v3M17 3v3M4 8h16M5 5h14v15H5z"), "紀念日"]));
     page3.appendChild(el("button", { class: "tab", onclick: openSettings }, [ico("M12 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7M4 12h2M18 12h2M12 4v2M12 18v2"), "設定"]));
 
-    var pages = el("div", { class: "pages" }, [page1, page2, page3]);
+    var page0 = el("div", { class: "page" }, [statRow]);
+    var pages = el("div", { class: "pages" }, [page0, page1, page2, page3]);
     var dots = el("div", { class: "dots2" });
-    var dotEls = [0, 1, 2].map(function (n) {
-      var d = el("button", { class: "dot2" + (n === dockPage ? " on" : "") + (n === 1 && pend.length ? " alert" : ""), "aria-label": ["任務", "互動", "我們"][n], onclick: function () { pages.scrollTo({ left: n * pages.clientWidth, behavior: "smooth" }); } });
+    var dotEls = [0, 1, 2, 3].map(function (n) {
+      var d = el("button", { class: "dot2" + (n === dockPage ? " on" : "") + (n === 2 && pend.length ? " alert" : ""), "aria-label": ["天數", "任務", "互動", "我們"][n], onclick: function () { pages.scrollTo({ left: n * pages.clientWidth, behavior: "smooth" }); } });
       dots.appendChild(d); return d;
     });
     pages.addEventListener("scroll", function () {
       var n = Math.round(pages.scrollLeft / Math.max(1, pages.clientWidth));
       if (n !== dockPage) { dockPage = n; dotEls.forEach(function (d, k) { d.classList.toggle("on", k === n); }); }
     }, { passive: true });
-    ui.appendChild(el("div", { class: "dock liquid-glass" }, [statRow, pages, dots]));
+    ui.appendChild(el("div", { class: "dock liquid-glass" }, [pages, dots]));
     pages.scrollLeft = dockPage * pages.clientWidth;
 
     layoutVideo();
