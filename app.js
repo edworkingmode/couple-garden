@@ -261,7 +261,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=49"; PET_IMG.sleep.src = "pet-sleep.webp?v=49";
+  PET_IMG.idle.src = "pet-idle.webp?v=50"; PET_IMG.sleep.src = "pet-sleep.webp?v=50";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
