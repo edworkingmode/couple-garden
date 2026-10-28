@@ -21,6 +21,10 @@ async function plan(table: string, type: string, r: any, old: any) {
     const to = await other(r.couple_id, r.from_id);
     return to && { to, title: "💗 " + await nick(r.from_id) + "想你了", body: "打開花園看看吧", tag: "miss" };
   }
+  if (table === "cg_checkins" && type === "INSERT") {
+    const to = await other(r.couple_id, r.user_id);
+    return to && { to, title: (r.mood || "💌") + " " + await nick(r.user_id) + "報平安", body: r.note || "今天平安", tag: "checkin" };
+  }
   if (table === "cg_rewards" && type === "INSERT") {
     return { to: r.owner, title: "🎁 " + await nick(r.created_by) + "幫你新增獎勵", body: r.title + "（" + r.cost + " 朵）", tag: "reward" };
   }
