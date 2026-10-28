@@ -32,6 +32,23 @@ def mask_of(rgb):
     core = np.clip((dense - 0.45) / 0.2, 0, 1)
     return Image.fromarray((np.maximum(alpha, core) * win * 255).astype(np.uint8))
 
+def decontaminate(rgb, mask):
+    # 邊緣半透明的像素原本混了黑底，顏色換成附近身體的顏色，疊在瓶子裡才不會有一圈黑邊
+    a = np.asarray(mask).astype(np.float32) / 255
+    # 眼睛這種身體裡的暗處補成不透明
+    solid = Image.fromarray(((a > 0.5) * 255).astype(np.uint8)).filter(ImageFilter.MaxFilter(15)).filter(ImageFilter.MinFilter(19))
+    a = np.maximum(a, np.asarray(solid.filter(ImageFilter.GaussianBlur(2))).astype(np.float32) / 255)
+    core = (a > 0.95).astype(np.float32)
+    c = np.asarray(rgb).astype(np.float32)
+    blur = lambda x: np.asarray(Image.fromarray(np.clip(x, 0, 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(6))).astype(np.float32)
+    w = blur(core * 255) / 255 + 1e-4
+    fill = np.dstack([blur(c[..., k] * core) / 255 / w * 255 for k in range(3)])
+    mix = np.clip((0.9 - a) / 0.5, 0, 1)[..., None]
+    out = c * (1 - mix) + fill * mix
+    # 邊緣再收一點，去掉最外圈的暗霧
+    a2 = np.clip((a - 0.25) / 0.75, 0, 1)
+    return Image.fromarray(np.dstack([np.clip(out, 0, 255), a2 * 255]).astype(np.uint8), "RGBA")
+
 idle = frames(sys.argv[1], keep=set(range(0, 25)))   # 最後幾格開始閉眼，不要
 sleep = frames(sys.argv[2])
 masks = {id(f): mask_of(f) for f in idle + sleep}
@@ -44,7 +61,7 @@ W = round((box[2] - box[0]) * H / (box[3] - box[1]))
 for name, fs in [("pet-idle.webp", idle), ("pet-sleep.webp", sleep)]:
     strip = Image.new("RGBA", (W * len(fs), H))
     for k, f in enumerate(fs):
-        rgba = f.copy(); rgba.putalpha(masks[id(f)])
+        rgba = decontaminate(f, masks[id(f)])
         strip.paste(rgba.crop(box).resize((W, H), Image.LANCZOS), (k * W, 0))
     strip.save(name, quality=88, method=6)
     print(name, len(fs), "frames", W, "x", H)
