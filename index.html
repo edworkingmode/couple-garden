@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>情侶花園</title>
-<meta name="app-version" content="2">
+<meta name="app-version" content="3">
 <meta name="theme-color" content="#010101">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -85,6 +85,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outli
 .auth-title { font-family: var(--font-display); font-weight: 400; font-size: 34px; letter-spacing: .08em; }
 .auth input, .sheet select { width: 100%; font: inherit; color: var(--ink); background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; min-height: 44px; }
 .auth input[type=email], .auth input[type=password], .auth input[type=text] { text-align: left; }
+.auth input { background: rgba(12, 14, 13, .88); border: 1px solid rgba(255, 255, 255, .32); color: #fff; font-size: 16px; }
+.auth input::placeholder { color: rgba(255, 255, 255, .66); }
+.auth input:focus { border-color: rgba(255, 255, 255, .7); outline: none; box-shadow: 0 0 0 3px rgba(239, 75, 95, .35); }
+.auth .legend, .auth .eyebrow { color: rgba(255, 255, 255, .78); }
+.auth .linkbtn { color: rgba(255, 255, 255, .85); }
 .sheet input[type=date] { width: 100%; font: inherit; color: var(--ink); background: rgba(255,255,255,.07); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px; min-height: 44px; }
 .btn.wideb { width: 100%; }
 .linkbtn { color: var(--ink-soft); font-size: 13px; letter-spacing: .08em; text-decoration: underline; min-height: 36px; }
