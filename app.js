@@ -261,7 +261,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=48"; PET_IMG.sleep.src = "pet-sleep.webp?v=48";
+  PET_IMG.idle.src = "pet-idle.webp?v=49"; PET_IMG.sleep.src = "pet-sleep.webp?v=49";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -750,7 +750,8 @@
         el("div", { class: "hubgrid" }, [
           hubBtn("⚙️", "設定", "暱稱、時區、花色、通知、配對", openSettings),
           hubBtn("🔢", "首頁要顯示的天數", "選要在首頁看到哪些天數", openUs),
-          hubBtn("🧭", "使用說明", "重新看一次所有功能怎麼用", function () { showIntro(0); })
+          hubBtn("🧭", "使用說明", "重新看一次所有功能怎麼用", function () { showIntro(0); }),
+          needTiltPermission() && !lsGet("cg-tilt") ? hubBtn("✦", "開啟景深", "傾斜手機時，瓶子和螢火蟲會有前後層次", function () { closeSheet(); askTilt(); }) : null
         ])];
     }
     openPanel(kids);
@@ -776,9 +777,19 @@
     ]);
   }
   // 首頁的天數一行（原本在工具列第一頁）
+  // 天數用一句白話：在一起 5 天・17 天後見面；兩人不同時區時，再加上對方那邊的時間
+  function dayPhrase(x) {
+    var today = x.n === "今天";
+    if (x.key === "meet") return today ? "今天見面" : x.n + " 天後見面";
+    if (x.key === "started") return "在一起 " + x.n + " 天";
+    if (x.key === "met") return "認識 " + x.n + " 天";
+    return x.name.replace("（倒數）", "") + (today ? "就是今天" : "還有 " + x.n + " 天");
+  }
   function daysLine(stats) {
-    if (!stats.length) return el("button", { class: "daysline", onclick: openUs, text: "＋ 設定紀念日" });
-    return el("button", { class: "daysline", onclick: openUs }, stats.slice(0, 3).map(function (x) { return el("span", {}, [x.label + " ", el("b", { text: x.n })]); }));
+    var parts = stats.slice(0, 2).map(dayPhrase);
+    if (partner && partner.tz && partner.tz !== me.tz) parts.push(nick(partner) + "那邊 " + localTime(partner.tz));
+    if (!parts.length) return el("button", { class: "daysline", onclick: openUs, text: "＋ 設定紀念日" });
+    return el("button", { class: "daysline", onclick: openUs, text: parts.join("・") });
   }
   // ---------- 待兌現的券 ----------
   // 兌換成立後，獎勵還沒真的發生：主畫面留一張券提醒兩個人，兌換的人收到後按「收到了」，瓶子裡多一盞小燈
@@ -1300,18 +1311,10 @@
       lsSet("cg-pseen-" + me.id, g.maxTs);
     }
 
-    ui.appendChild(el("div", { class: "top" }, [
-      el("div", { class: "brand" }, ["Couple Garden", el("small", { text: nick(me) })]),
-      el("div", { class: "topr" }, [
-        el("span", { class: "conn", text: connText }),
-        needTiltPermission() && !lsGet("cg-tilt") ? el("button", { class: "tiltbtn", onclick: askTilt }, ["✦ 開啟景深"]) : null
-      ])
-    ]));
 
     // 天數、見面倒數、兩地時間
     // 天數卡片：見面倒數、在一起、認識（最多 3 張）
     var now = new Date(), stats = dayStats(now);
-    var tzLine = partner && partner.tz && partner.tz !== me.tz ? clockText(me) + "　·　" + clockText(partner) : "";
 
     var tabs = el("div", { class: "gtabs", role: "tablist" }, [["me", me], ["partner", partner]].map(function (pair) {
       var key = pair[0], p = pair[1];
@@ -1327,16 +1330,16 @@
       if (from !== g.count) animateNum(numEl, from, g.count, shown[view] == null ? 900 : 150);
       shown[view] = g.count;
     }
+    // 上半部只留三層：頂列（品牌＋切換瓶子）→ 朵數與天數 → 今天小卡
+    ui.appendChild(el("div", { class: "top" }, [
+      el("div", { class: "brand" }, ["Couple Garden", connText ? el("span", { class: "conndot", title: connText, "aria-label": connText }) : null]),
+      tabs
+    ]));
     ui.appendChild(el("div", { class: "hero" }, [
-      tabs,
-      el("div", { class: "chips" }, [
-        el("span", {}, ["共 ", el("b", { text: String(g.count) }), " 朵"]),
-        el("span", {}, ["本週 ", el("b", { text: String(g.week) }), " 朵"]),
-        el("span", { class: "blk" }, ["小黑花 ", el("b", { text: String(g.blacks.length) }), " 朵"])
-      ]),
-      partner ? todayCard(pend) : null,
+      el("div", { class: "headline" }, [el("b", { text: String(g.count) }), el("span", { text: " 朵" }),
+        g.blacks.length ? el("span", { class: "blk", text: "・小黑花 " + g.blacks.length }) : null]),
       daysLine(stats),
-      tzLine ? el("p", { class: "caption", text: tzLine }) : null,
+      partner ? todayCard(pend) : null,
       !partner ? el("div", { class: "invite" }, [
         el("p", { class: "invite-t", text: "還差一步：邀請另一半加入" }),
         el("p", { class: "invite-code", text: couple.invite_code }),
