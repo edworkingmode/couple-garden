@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Couple Garden 情侶花園</title>
-<meta name="app-version" content="50">
+<meta name="app-version" content="51">
 <meta name="theme-color" content="#010101">
 <meta name="color-scheme" content="dark">
 <meta name="darkreader-lock">
@@ -290,9 +290,9 @@ input::placeholder { color: var(--ink-faint); }
 /* 花的卡片 */
 .fcard { position: relative; margin: 4px 0 2px; padding: 26px 22px 22px; border-radius: 20px; text-align: center; background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)); border: 1px solid rgba(255,255,255,.12); animation: cardin .6s cubic-bezier(.2,.9,.3,1) both; }
 .fcard.black { background: linear-gradient(180deg, rgba(170,140,255,.1), rgba(255,255,255,.02)); }
-.fc-bloom { width: 130px; height: 128px; margin: 0 auto 6px; background: url(rose-red.png?v=50) center / contain no-repeat; filter: drop-shadow(0 6px 18px rgba(255,90,110,.35)); animation: bloomin .9s .15s cubic-bezier(.2,1.4,.4,1) both; }
-.fc-bloom.blue { background-image: url(rose-blue.png?v=50); filter: drop-shadow(0 6px 18px rgba(90,140,240,.35)); }
-.fc-bloom.black { background-image: url(rose-black.png?v=50); filter: drop-shadow(0 6px 18px rgba(170,140,255,.4)); }
+.fc-bloom { width: 130px; height: 128px; margin: 0 auto 6px; background: url(rose-red.png?v=51) center / contain no-repeat; filter: drop-shadow(0 6px 18px rgba(255,90,110,.35)); animation: bloomin .9s .15s cubic-bezier(.2,1.4,.4,1) both; }
+.fc-bloom.blue { background-image: url(rose-blue.png?v=51); filter: drop-shadow(0 6px 18px rgba(90,140,240,.35)); }
+.fc-bloom.black { background-image: url(rose-black.png?v=51); filter: drop-shadow(0 6px 18px rgba(170,140,255,.4)); }
 .fc-no { font-family: 'Instrument Serif', var(--font-display); font-style: italic; font-size: 34px; line-height: 1.1; }
 .fc-date { margin-top: 4px; font-size: 12px; letter-spacing: .2em; color: var(--ink-faint); }
 .fc-how { margin-top: 2px; font-size: 13px; letter-spacing: .08em; color: var(--ink-soft); }
@@ -327,11 +327,11 @@ input::placeholder { color: var(--ink-faint); }
   #ui .dock { bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) - 20px)); }   /* 貼近螢幕下緣，只留一點點距離 */
 }
 /* 瓶子裡的玫瑰 */
-.pf .rose { position: absolute; top: -3.3%; right: -3.3%; bottom: -3.3%; left: -3.3%; background: url(rose-red-b.png?v=50) center bottom / contain no-repeat; transform-origin: 50% 100%; }
+.pf .rose { position: absolute; top: -3.3%; right: -3.3%; bottom: -3.3%; left: -3.3%; background: url(rose-red-b.png?v=51) center bottom / contain no-repeat; transform-origin: 50% 100%; }
 /* 腳下的影子：讓花插在苔蘚裡而不是浮著（不用濾鏡，iPhone 才畫得出來） */
 .pf::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: -4%; height: 12%; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(0,0,0,.6), rgba(0,0,0,0) 70%); z-index: -1; }
-.pf.blue .rose { background-image: url(rose-blue-b.png?v=50); }
-.pf.black .rose { background-image: url(rose-black-b.png?v=50); }
+.pf.blue .rose { background-image: url(rose-blue-b.png?v=51); }
+.pf.black .rose { background-image: url(rose-black-b.png?v=51); }
 .log li.black .what b { color: #c9b2ff; }
 /* 讓花和小精靈融進瓶子：頂光、底部暗、玻璃反光在最上層 */
 #orb-layer .orb-haze { position: absolute; border-radius: 50%; pointer-events: none; z-index: 100001;
@@ -368,8 +368,8 @@ input::placeholder { color: var(--ink-faint); }
 .libmonth { font-size: 13px !important; letter-spacing: .14em; color: var(--ink-soft); margin-top: 6px; }
 .libgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .libcell { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px 10px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid var(--line); text-align: center; min-width: 0; }
-.librose { width: 56px; height: 56px; background: url(rose-red.png?v=50) center / contain no-repeat; }
-.librose.blue { background-image: url(rose-blue.png?v=50); }
+.librose { width: 56px; height: 56px; background: url(rose-red.png?v=51) center / contain no-repeat; }
+.librose.blue { background-image: url(rose-blue.png?v=51); }
 .libno { font-size: 11px; letter-spacing: .06em; color: var(--ink-faint); }
 .libnote { font-size: 12px; line-height: 1.4; color: var(--ink-soft); width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .libmore { align-self: center; font-size: 13px; }
@@ -441,6 +441,12 @@ input::placeholder { color: var(--ink-faint); }
 .headline b { font-family: 'Instrument Serif', var(--font-display); font-style: italic; font-size: 46px; font-weight: 400; line-height: 1; color: var(--ink); letter-spacing: -.01em; margin-right: 2px; }   /* 跟花卡、獎勵的數字同一種斜體襯線字 */
 .headline .blk { color: #c9b2ff; font-size: 13px; }
 .hero .daysline { margin: 2px auto 10px; }
+/* 互動清單：兩欄小格，一個畫面放得下 */
+.hubgrid.two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 6px 0 8px; }
+.hubbtn.tile { flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px; }
+.hubbtn.tile .hb-ico { width: auto; font-size: 20px; }
+.hubbtn.tile .hb-t span { font-size: 11px; }
+.hubbtn.tile .badge { position: absolute; top: 10px; right: 10px; margin: 0; }
 </style>
 </head>
 <body>
@@ -462,7 +468,7 @@ input::placeholder { color: var(--ink-faint); }
 <div id="sheet-root"></div>
 <div id="toast-root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=50"></script>
-<script src="app.js?v=50"></script>
+<script src="config.js?v=51"></script>
+<script src="app.js?v=51"></script>
 </body>
 </html>
