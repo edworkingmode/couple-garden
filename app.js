@@ -163,10 +163,16 @@
     f._H = H; f._W = w;
     return f;
   }
+  var orbSig = "";
   function renderOrb(list, fresh, owner) {
     var layer = document.getElementById("orb-layer");
-    layer.textContent = "";
     var o = orbGeom(), n = list.length;
+    // 每 8 秒會重新抓資料；花和尺寸都沒變就不重畫，不然小精靈和花會一閃一閃
+    var sig = (owner ? owner.id + gardenColor(owner) : "") + "|" + list.map(function (d) { return d.id + d.status; }).join(",") + "|" + [o.cx, o.cy, o.rx, o.ry].map(Math.round).join(",");
+    var hasNew = fresh && Object.keys(fresh).length;
+    if (sig === orbSig && !hasNew && layer.childNodes.length) return;
+    orbSig = sig;
+    layer.textContent = "";
     var fb = el("div", { id: "orb-fb" });
     fb.style.left = (o.cx - o.rx) + "px"; fb.style.top = (o.cy - o.ry) + "px"; fb.style.width = (o.rx * 2) + "px"; fb.style.height = (o.ry * 2) + "px";
     layer.appendChild(fb);
@@ -185,7 +191,7 @@
     var color = gardenColor(owner);
     list.forEach(function (d, i) {
       var k = i % M, wrap = Math.floor(i / M);
-      var it = { i: i, d: d, r: (0.4 + 0.6 * Math.sqrt((k + 0.5) / M)) * (wrap ? 0.92 : 1),   // 中間留給小精靈
+      var it = { i: i, d: d, r: (0.62 + 0.38 * Math.sqrt((k + 0.5) / M)) * (wrap ? 0.92 : 1),   // 中間留給小精靈，花不會被牠擋住
         a: i * 2.39996 + wrap * 0.7,
         jx: (seeded(i + 90) - 0.5) * hF * 0.5, jy: wrap * 3 + (seeded(i + 91) - 0.5) * hF * 0.3 };
       var isNew = !!(fresh && fresh[d.id]);
@@ -203,6 +209,9 @@
       items.forEach(function (it) {
         var ang = it.a + spin.theta;
         var x = bx + Math.cos(ang) * hw * it.r + it.jx, y = by + Math.sin(ang) * hh * it.r + it.jy;
+        // 在小精靈後面、又被牠擋住寬度的花，往旁邊推出去
+        var pb = petBox(o, bx, by), gap = pb.w * 0.5 + it.f._W * 0.3;
+        if (y < pb.foot && Math.abs(x - pb.x) < gap) x = pb.x + (x >= pb.x ? gap : -gap);
         var dp = Math.max(0, Math.min(1, (y - (by - hh)) / (2 * hh)));
         it.f.style.left = (x - it.f._W / 2) + "px"; it.f.style.top = (y - it.f._H) + "px";
         it.f.style.scale = (0.86 + 0.28 * dp).toFixed(3);
@@ -218,14 +227,18 @@
     addFront(layer, o);
   }
   // 苔蘚小精靈：坐在瓶子中間的土上。待機會呼吸、晃小芽，放著不管會睡著，點一下就醒來跳一下
-  var PET = { w: 151, h: 180, idle: 25, sleep: 30 };
+  var PET = { w: 150, h: 180, idle: 25, sleep: 30 };
   var pet = { el: null, mode: "idle", f: 0, dir: 1, idleSince: Date.now(), timer: null };
+  function petBox(o, bx, by) {
+    var H = Math.round(o.ry * 0.6);
+    return { h: H, w: Math.round(H * PET.w / PET.h), x: bx + o.rx * 0.09, foot: by + (o.ry * 0.26) * 0.45 };
+  }
   function addPet(layer, bx, by, o) {
-    var H = Math.round(o.ry * 0.6), W = Math.round(H * PET.w / PET.h);
+    var B = petBox(o, bx, by), H = B.h, W = B.w;
     var p = el("div", { class: "pet", role: "button", "aria-label": "苔蘚小精靈" });
     p.style.width = W + "px"; p.style.height = H + "px";
-    var footY = by + (o.ry * 0.26) * 0.45;   // 坐在苔蘚前半部，大部分的花在牠後面
-    var px = bx + o.rx * 0.09;   // 照片裡的土坑在瓶子正中央偏右一點，讓牠坐在土坑正中間
+    var footY = B.foot;   // 坐在苔蘚前半部，大部分的花在牠後面
+    var px = B.x;   // 照片裡的土坑在瓶子正中央偏右一點，讓牠坐在土坑正中間
     p.style.left = (px - W / 2) + "px"; p.style.top = (footY + H * 0.06 - H) + "px";
     p.style.zIndex = String(Math.round(footY));
     var shadow = el("div", { class: "pet-shadow", "aria-hidden": "true" });   // 腳下的影子，讓牠坐在苔蘚上而不是浮著
@@ -236,11 +249,11 @@
     p.addEventListener("click", function () { if (!spin.moved) pokePet(); });
     layer.appendChild(p);
     pet.el = p; drawPet();
-    if (!pet.timer) pet.timer = setInterval(tickPet, 110);
+    if (!pet.timer) pet.timer = setInterval(tickPet, 140);
   }
   function drawPet() {
     if (!pet.el) return;
-    var sheet = (pet.mode === "idle" ? "pet-idle.webp" : "pet-sleep.webp") + "?v=25", n = pet.mode === "idle" ? PET.idle : PET.sleep;
+    var sheet = (pet.mode === "idle" ? "pet-idle.webp" : "pet-sleep.webp") + "?v=36", n = pet.mode === "idle" ? PET.idle : PET.sleep;
     pet.el.style.backgroundImage = "url(" + sheet + ")";
     pet.el.style.backgroundSize = (n * 100) + "% 100%";
     pet.el.style.backgroundPosition = (pet.f / (n - 1) * 100) + "% 0";
