@@ -607,27 +607,37 @@
     openPanel(kids);
   }
   // ---------- 獎勵 ----------
+  // 獎勵頁分兩區：上面是對方開給我、我可以兌換的；下面是我開給對方的，可以新增、移除
   function openRewards() {
-    var owner = viewOwner(), mine = owner === me, pts = points(owner);
-    var list = rewards.filter(function (r) { return owner && r.owner === owner.id; });
-    var kids = [
-      el("h2", { text: mine ? "我的獎勵" : nick(owner) + "的獎勵" }),
-      el("div", { class: "pts" }, [el("b", { text: String(pts) }), el("span", { text: "可用朵數" })]),
-      el("p", { class: "legend", text: mine ? "由" + nick(partner) + "設定。兌換只扣可用朵數，瓶子裡的花會一直留著。" : "你送" + nick(owner) + "花，獎勵由你來開。" + nick(owner) + "兌換後要你確認。" })
-    ];
-    if (!list.length) kids.push(el("p", { class: "legend", text: mine ? "還沒有獎勵，可以請" + nick(partner) + "幫你設定。" : "還沒有獎勵，新增一個吧。" }));
-    list.forEach(function (r) {
+    var pts = points(me), kids = [el("h2", { text: "獎勵" })];
+    var row = function (r, btn) {
+      return el("div", { class: "rwrow" }, [el("div", { class: "rwcost" }, [el("b", { text: String(r.cost) }), el("span", { text: "朵" })]), el("div", { class: "rwtitle", text: r.title }), btn]);
+    };
+    kids.push(el("h3", { text: "我可以兌換的" }));
+    kids.push(el("div", { class: "pts" }, [el("b", { text: String(pts) }), el("span", { text: "可用朵數" })]));
+    var forMe = rewards.filter(function (r) { return r.owner === me.id; });
+    if (!forMe.length) kids.push(el("p", { class: "legend", text: partner ? "還沒有，" + nick(partner) + "可以幫你設定。" : "等對方加入後，就能互相設定獎勵。" }));
+    forMe.forEach(function (r) {
       var waiting = claims.some(function (c) { return c.reward_id === r.id && c.status === "pending"; });
-      var btn = mine
-        ? el("button", { class: "btn" + (pts >= r.cost && !waiting ? " primary" : ""), text: waiting ? "等確認" : pts >= r.cost ? "兌換" : "還差 " + (r.cost - pts) + " 朵", onclick: function () {
-            if (waiting || pts < r.cost) return;
-            confirmPanel("兌換「" + r.title + "」？", "會用掉 " + r.cost + " 朵可用朵數，" + nick(partner) + "確認後就成立。", "兌換", function () { claimReward(r); });
-          } })
-        : el("button", { class: "btn ghost", text: "移除", onclick: function () { confirmPanel("移除「" + r.title + "」？", "已經兌換過的紀錄會保留。", "移除", function () { act(function () { return sb.from("cg_rewards").update({ active: false }).eq("id", r.id); }, "已移除"); }); } });
-      if (waiting || (mine && pts < r.cost)) btn.setAttribute("disabled", "");
-      kids.push(el("div", { class: "rwrow" }, [el("div", { class: "rwcost" }, [el("b", { text: String(r.cost) }), el("span", { text: "朵" })]), el("div", { class: "rwtitle", text: r.title }), btn]));
+      var ok = pts >= r.cost && !waiting;
+      var btn = el("button", { class: "btn" + (ok ? " primary" : ""), text: waiting ? "等確認" : pts >= r.cost ? "兌換" : "還差 " + (r.cost - pts) + " 朵", onclick: function () {
+        if (!ok) return;
+        confirmPanel("兌換「" + r.title + "」？", "會用掉 " + r.cost + " 朵可用朵數，" + nick(partner) + "確認後就成立。瓶子裡的花不會少。", "兌換", function () { claimReward(r); });
+      } });
+      if (!ok) btn.setAttribute("disabled", "");
+      kids.push(row(r, btn));
     });
-    if (!mine && partner) kids.push(el("button", { class: "btn primary", text: "新增獎勵", onclick: openAddReward }));
+    if (partner) {
+      kids.push(el("h3", { text: "我開給" + nick(partner) + "的" }));
+      var forThem = rewards.filter(function (r) { return r.owner === partner.id; });
+      kids.push(el("p", { class: "legend", text: nick(partner) + "目前可用 " + points(partner) + " 朵。兌換後會到你的「待處理」等你確認。" }));
+      forThem.forEach(function (r) {
+        kids.push(row(r, el("button", { class: "btn ghost", text: "移除", onclick: function () {
+          confirmPanel("移除「" + r.title + "」？", "已經兌換過的紀錄會保留。", "移除", function () { act(function () { return sb.from("cg_rewards").update({ active: false }).eq("id", r.id); }, "已移除"); });
+        } })));
+      });
+      kids.push(el("button", { class: "btn primary", text: "＋ 新增獎勵給" + nick(partner), onclick: openAddReward }));
+    }
     kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })]));
     openPanel(kids);
   }
@@ -738,6 +748,7 @@
     var yearly = el("input", { type: "checkbox", id: "date-yearly", checked: "" });
     openPanel([
       el("h2", { text: "我們" }),
+      el("p", { class: "legend", text: "這裡的日子會變成天數頁的數字：在一起幾天、認識幾天、還有幾天見面。下面的紀念日（生日、交往紀念日…）會自動倒數，最近的一個也會出現在天數頁。" }),
       el("label", { class: "field" }, [el("span", { text: "在一起的日子" }), started]),
       el("label", { class: "field" }, [el("span", { text: "認識的日子" }), met]),
       el("label", { class: "field" }, [el("span", { text: "下次見面" }), meet]),
@@ -934,8 +945,11 @@
     if (couple.next_meet) { var left = daysBetween(now, parseDay(couple.next_meet)); if (left >= 0) stats.push({ n: left === 0 ? "今天" : String(left), label: left === 0 ? "見面" : "見面倒數", cls: " meet" }); }
     if (couple.started_on) stats.push({ n: String(daysBetween(parseDay(couple.started_on), now) + 1), label: "在一起・天" });
     if (couple.met_on) stats.push({ n: String(daysBetween(parseDay(couple.met_on), now) + 1), label: "認識・天" });
+    // 最近的一個紀念日也放進天數頁
+    var nextDate = dates.map(function (d) { return { d: d, left: daysBetween(now, nextOccurrence(d)) }; }).filter(function (x) { return x.left >= 0; }).sort(function (a, b) { return a.left - b.left; })[0];
+    if (nextDate) stats.push({ n: nextDate.left === 0 ? "今天" : String(nextDate.left), label: nextDate.d.title.slice(0, 5) + (nextDate.left === 0 ? "" : "・倒數"), cls: " anniv" });
     var statRow = stats.length
-      ? el("div", { class: "stats" }, stats.slice(0, 3).map(function (x) { return el("button", { class: "stat" + (x.cls || ""), onclick: openUs }, [el("b", { text: x.n }), el("span", { text: x.label })]); }))
+      ? el("div", { class: "stats" }, stats.slice(0, 4).map(function (x) { return el("button", { class: "stat" + (x.cls || ""), onclick: openUs }, [el("b", { text: x.n }), el("span", { text: x.label })]); }))
       : el("div", { class: "stats" }, [el("button", { class: "stat setup", onclick: openUs }, [el("b", { text: "＋" }), el("span", { text: "設定紀念日" })])]);
     var tzLine = partner && partner.tz && partner.tz !== me.tz ? clockText(me) + "　·　" + clockText(partner) : "";
 
