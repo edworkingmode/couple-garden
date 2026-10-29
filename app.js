@@ -157,15 +157,27 @@
     return { cx: L.left + ORB.cx * VID.w * L.s, cy: L.top + ORB.cy * VID.h * L.s, rx: ORB.rx * VID.w * L.s, ry: ORB.ry * VID.h * L.s };
   }
   // 一朵玫瑰（含莖和葉）。每朵用編號決定左右翻轉、歪斜和高矮，看起來才不會一模一樣
+  // 花的圖檔（給遠近暗影的遮罩用，要跟 CSS 的背景圖一致）
+  function atlasImg(atlas) {
+    var c = (atlas || "").trim();
+    if (c === "blue") return "rose-blue-b.png"; if (c === "black") return "rose-black-b.png";
+    if (c.indexOf("fl-") === 0) return "flower-" + c.slice(3) + ".png";
+    return "rose-red-b.png";
+  }
   function photoFlower(i, isNew, S, atlas) {
-    var flip = seeded(i * 5 + 2) > 0.5 ? -1 : 1, tilt = (seeded(i * 7 + 3) - 0.5) * 18, k = 0.85 + seeded(i * 13 + 5) * 0.3;
+    // 每朵高矮不同（0.72～1.27 倍），左右翻轉、歪斜也不同，看起來才像自然長出來的
+    var flip = seeded(i * 5 + 2) > 0.5 ? -1 : 1, tilt = (seeded(i * 7 + 3) - 0.5) * 18, k = 0.72 + seeded(i * 13 + 5) * 0.55;
     var w = S * 0.72 * k, H = w * 360 / 365;
     var f = el("div", { class: "pf" + atlas + (isNew ? " new" : ""), "aria-hidden": "true" });
     f.style.width = w + "px"; f.style.height = H + "px";
     var rose = el("div", { class: "rose" });
     rose.style.transform = "scaleX(" + flip + ") rotate(" + tilt.toFixed(1) + "deg)";
+    // 遠近暗影：用花本身的形狀當遮罩疊一層暗色，後排的花比較暗（不用 CSS 濾鏡，iPhone 才畫得出來）
+    var url = "url(" + atlasImg(atlas) + ")", shade = el("div", { class: "pf-shade" });
+    shade.style.webkitMaskImage = url; shade.style.maskImage = url;
+    rose.appendChild(shade);
     f.appendChild(rose);
-    f._H = H; f._W = w;
+    f._H = H; f._W = w; f._shade = shade;
     return f;
   }
   var orbSig = "";
@@ -214,21 +226,29 @@
         f.classList.add("picked"); setTimeout(function () { f.classList.remove("picked"); }, 900); openEntry(d, i + 1);
       });
       it.f = f; items.push(it);
+      it.sh = el("div", { class: "pf-sh", "aria-hidden": "true" });   // 腳下的陰影，讓花插在苔蘚裡
+      layer.appendChild(it.sh);
       layer.appendChild(f);
     });
     // 依位置算遠近大小與前後順序
     spin.place = function () {
       items.forEach(function (it) {
         var ang = it.a + spin.theta;
-        var x = bx + Math.cos(ang) * hw * it.r + it.jx, sn = Math.sin(ang), y = by + (sn < 0 ? sn * 0.55 : sn) * hh * it.r + it.jy;   // 後半圈壓扁一點，後排的花不會縮到看不見
+        var x = bx + Math.cos(ang) * hw * it.r + it.jx, sn = Math.sin(ang), y = by + (sn < 0 ? sn * 0.85 : sn * 0.9) * hh * it.r + it.jy;   // 前後拉開，才有遠近層次
         // 在小精靈後面、又被牠擋住寬度的花，往旁邊推出去
         var pb = petBox(o, bx, by), gap = pb.w * 0.5 + it.f._W * 0.3;
         if (y < pb.foot && Math.abs(x - pb.x) < gap) x = pb.x + (x >= pb.x ? gap : -gap);
         var dp = Math.max(0, Math.min(1, (y - (by - hh)) / (2 * hh)));
         it.f.style.left = (x - it.f._W / 2) + "px"; it.f.style.top = (y - it.f._H) + "px";
-        it.f.style.scale = (0.86 + 0.28 * dp).toFixed(3);
-        it.f.style.opacity = (0.8 + 0.2 * dp).toFixed(2);   // 後排稍淡。不用 CSS 濾鏡：iPhone Safari 在一直移動的圖層裡，有濾鏡的花會整朵畫不出來
+        var sc = 0.66 + 0.36 * dp;                                   // 近大遠小
+        it.f.style.scale = sc.toFixed(3);
+        it.f.style.opacity = (0.9 + 0.1 * dp).toFixed(2);
+        it.f._shade.style.opacity = (0.62 * (1 - dp) + 0.05).toFixed(2);   // 後排比較暗
         it.f.style.zIndex = String(Math.round(y));
+        var sw = it.f._W * 0.62 * sc, shh = it.f._W * 0.16 * sc;
+        it.sh.style.left = (x - sw / 2) + "px"; it.sh.style.top = (y - shh * 0.55) + "px";
+        it.sh.style.width = sw + "px"; it.sh.style.height = shh + "px"; it.sh.style.zIndex = String(Math.round(y) - 1);
+        it.sh.style.opacity = (0.45 + 0.35 * dp).toFixed(2);
         if (it.f.classList.contains("new")) it.f.style.setProperty("--drop", Math.round((o.cy - o.ry * 0.9) - y) + "px");
       });
     };
@@ -267,7 +287,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=57"; PET_IMG.sleep.src = "pet-sleep.webp?v=57";
+  PET_IMG.idle.src = "pet-idle.webp?v=58"; PET_IMG.sleep.src = "pet-sleep.webp?v=58";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
