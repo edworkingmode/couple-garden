@@ -22,7 +22,7 @@
   var ASSET = (window.innerWidth <= 700 && window.innerHeight > window.innerWidth) ? ASSETS.mobile : ASSETS.full;
   var VID = { w: ASSET.w, h: ASSET.h }, ORB = ASSET.orb;
 
-  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [], rewards = [], claims = [], checkins = [], angers = [], coaxes = [], inbox = { blessings: [], guest: [], sent_today: [] };
+  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [], rewards = [], claims = [], checkins = [], angers = [], coaxes = [], inbox = { blessings: [], guest: [], sent_today: [] }, bouquets = [];
   var view = "me", dockPage = 0, busy = false, loaded = false, poller = null, connText = "";
   var sheetOnClose = null, cardQueue = [], seen = {}, shown = {}, animated = {}, cardShown = {}, entered = false;
 
@@ -267,7 +267,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=56"; PET_IMG.sleep.src = "pet-sleep.webp?v=56";
+  PET_IMG.idle.src = "pet-idle.webp?v=57"; PET_IMG.sleep.src = "pet-sleep.webp?v=57";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -372,8 +372,10 @@
       sb.from("cg_checkins").select("*").eq("couple_id", me.couple_id).order("day", { ascending: false }).limit(800),
       sb.from("cg_angers").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(200),
       sb.from("cg_coaxes").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(500),
-      sb.rpc("cg_inbox")
+      sb.rpc("cg_inbox"),
+      sb.from("cg_bouquets").select("*").eq("couple_id", me.couple_id).order("ts")
     ]);
+    bouquets = res[12].error ? [] : (res[12].data || []);
     inbox = (!res[11].error && res[11].data) || { blessings: [], guest: [], sent_today: [] };
     angers = res[9].error ? [] : (res[9].data || []);   // 還沒建表時就當作沒有
     coaxes = res[10].error ? [] : (res[10].data || []);
@@ -410,7 +412,7 @@
     var blacks = mine.filter(function (e) { return e.kind === "black" && (e.status === "confirmed" || e.status === "appeal"); }).sort(byTs);
     var redeemed = mine.filter(function (e) { return e.kind === "black" && e.status === "redeemed"; }).length;
     var avail = flowers.slice(Math.min(flowers.length, redeemed * REDEEM_COST));
-    var inOrb = avail.concat(blacks).sort(byTs);
+    var inOrb = avail.filter(function (e) { return !e.bouquet_id; }).concat(blacks).sort(byTs);   // 包成花束的花放在展示廳，不畫在瓶子裡
     var t = new Date(), mon = new Date(t); mon.setDate(t.getDate() - ((t.getDay() + 6) % 7));
     var from = dateKey(mon), week = 0;
     flowers.forEach(function (e) { if (e.day >= from) week++; });
@@ -885,6 +887,7 @@
           hubBtn("🎁", "獎勵", "用花換獎勵", openRewards, 0, "tile"),
           hubBtn(angerOn(me.id) ? "🌧️" : "😤", angerOn(me.id) ? "你在生氣" : "生氣", angerOn(me.id) ? "看哄的話・消氣" : "讓對方瓶子下雨", startAnger, 0, "tile"),
           tickets().length ? hubBtn("🎟️", "待兌現的券", owed ? pn + "欠你 " + owed + " 張" : "你欠" + pn + "的", openTickets, 0, "tile") : null,
+          hubBtn("💐", "包成花束", "把瓶子裡最舊的 10 朵包起來", openMakeBouquet, 0, "tile"),
           hubBtn("🖤", "小黑花", "給" + pn + "，可申訴或贖回", startBlack, 0, "tile dim")
         ])];
     } else if (key === "mem") {
@@ -892,6 +895,7 @@
       kids = [el("h2", { text: "回憶" }),
         st.length ? el("div", { class: "stats hubstats" }, st.map(function (x) { return el("button", { class: "stat" + (x.cls || ""), onclick: openUs }, [el("b", { text: x.n }), el("span", { text: x.label })]); })) : null,
         el("div", { class: "hubgrid" }, [
+          hubBtn("🏛️", "展示廳", bouquets.length ? "已經有 " + bouquets.length + " 束花" : "瓶子超過 15 朵時，可以把 10 朵包成一束放這裡", function () { openShowcase(); }),
           hubBtn("📖", "花花圖書館", "每一朵花和它的話，依月份收好", function () { libTab = "in"; openLibrary(); }),
           hubBtn("📅", "紀念日", "在一起、認識、生日、下次見面", openUs),
           hubBtn("📝", "留言簿與祝福花", "好友送的祝福花 " + (inbox.blessings || []).length + " 朵・留言 " + (inbox.guest || []).length + " 則", openGuestbook, inboxNew()),
@@ -925,6 +929,8 @@
     if (pend.length) todo.push({ t: "🔔 " + pend.length + " 件等你確認", go: openPending });
     if (!a) todo.push({ t: "💌 今天還沒報平安，點我", go: openCheckin });
     if (owed) todo.push({ t: "🎟️ " + nick(partner) + "欠你 " + owed + " 張券", go: openTickets });
+    var loose = entries.filter(function (e) { return e.owner === me.id && e.kind !== "black" && e.status === "confirmed" && !e.bouquet_id; }).length;
+    if (loose > BOWL_MAX) todo.push({ t: "💐 瓶子快滿了，把最舊的 10 朵包成花束", go: openMakeBouquet });
     if (inboxNew()) todo.push({ t: "🤍 好友來串門子了，看看他們留下什麼", go: openBlessings });
     if (!todo.length) return checkinLine();
     checkinLine();   // 照常檢查連續天數的慶祝卡
@@ -1027,11 +1033,11 @@
   function endVisit() { visit = null; orbSig = ""; route(); }
   // 借用自己家的畫法：暫時把「我、對方、花、燈、天氣」換成好友的資料來畫瓶子，畫完立刻換回來
   function asVisit(fn) {
-    var keep = [me, partner, couple, entries, claims, angers, coaxes, dates];   // 小花盆的數量由 potCount() 看 visit 決定
+    var keep = [me, partner, couple, entries, claims, angers, coaxes, dates, bouquets];   // 小花盆的數量由 potCount() 看 visit 決定
     var m = visit.data.members, k = visit.idx;
     me = Object.assign({}, m[k]); partner = m[1 - k] ? Object.assign({}, m[1 - k]) : null;
-    couple = Object.assign({}, visit.data.couple); entries = visit.data.entries; claims = visit.data.claims; angers = visit.data.angers; coaxes = []; dates = [];
-    try { return fn(); } finally { me = keep[0]; partner = keep[1]; couple = keep[2]; entries = keep[3]; claims = keep[4]; angers = keep[5]; coaxes = keep[6]; dates = keep[7]; }
+    couple = Object.assign({}, visit.data.couple); entries = visit.data.entries; claims = visit.data.claims; angers = visit.data.angers; coaxes = []; dates = []; bouquets = visit.data.bouquets || [];
+    try { return fn(); } finally { me = keep[0]; partner = keep[1]; couple = keep[2]; entries = keep[3]; claims = keep[4]; angers = keep[5]; coaxes = keep[6]; dates = keep[7]; bouquets = keep[8]; }
   }
   function renderVisit() {
     var ui = document.getElementById("ui"), m = visit.data.members;
@@ -1049,7 +1055,8 @@
     ui.appendChild(el("div", { class: "hero" }, [
       el("div", { class: "headline" }, [el("b", { text: String(info.count) }), el("span", { text: " 朵" }), info.blacks ? el("span", { class: "blk", text: "・小黑花 " + info.blacks }) : null]),
       el("p", { class: "daysline", text: visit.names + (info.days.length ? "・" + info.days.slice(0, 1).map(dayPhrase).join("") : "") }),
-      el("p", { class: "visitnote", text: "👀 串門子中：看得到瓶子，看不到花上寫的話" })
+      el("p", { class: "visitnote", text: "👀 串門子中：看得到瓶子，看不到花上寫的話" }),
+      (visit.data.bouquets || []).length ? el("button", { class: "daysline", onclick: function () { asVisit(function () { openShowcase(true); }); } }, ["🏛️ 去看他們的展示廳（" + visit.data.bouquets.length + " 束）"]) : null
     ]));
     var blessed = visit.data.blessed_today;
     ui.appendChild(el("div", { class: "dock liquid-glass tabs4 visitdock" }, [
@@ -1058,6 +1065,82 @@
       el("button", { class: "btn ghost", text: "📝 留言", onclick: openGuestWrite })
     ]));
     layoutVideo();
+  }
+  // ---------- 花束與展示廳 ----------
+  // 瓶子裡沒包起來的花超過 15 朵就提醒；一次把最舊的 10 朵包成一束，放進兩人共用的展示廳。朵數、獎勵、徽章都照總數算
+  var BOWL_MAX = 15;
+  function bouquetFlowers(b) { return entries.filter(function (e) { return e.bouquet_id === b.id; }).sort(function (x, y) { return x.ts - y.ts; }); }
+  function flowerImg(e) {
+    if (e.style && e.style !== "rose") return flowerOf(e.style).img;
+    if (e.style === "rose") return "rose-red-b.png";
+    var owner = e.owner === me.id ? me : partner;
+    return gardenColor(owner) === "blue" ? "rose-blue-b.png" : "rose-red-b.png";
+  }
+  // 花束：10 朵花從同一個點扇形散開，下面是牛皮紙包裝和緞帶（純 CSS 與圖片，不用濾鏡）
+  function bouquetEl(list, size) {
+    var wrap = el("div", { class: "bq", style: "width:" + size + "px;height:" + Math.round(size * 1.25) + "px" });
+    var n = list.length;
+    list.forEach(function (e, i) {
+      var t = n > 1 ? i / (n - 1) : 0.5, ang = (t - 0.5) * 70, row = i % 2;
+      var f = el("div", { class: "bq-f", style: "background-image:url(" + flowerImg(e) + ");transform:translateX(-50%) rotate(" + ang.toFixed(1) + "deg);height:" + (row ? 70 : 80) + "%;z-index:" + (row ? 2 : 1) });
+      wrap.appendChild(f);
+    });
+    wrap.appendChild(el("div", { class: "bq-paper" }));
+    wrap.appendChild(el("div", { class: "bq-ribbon" }));
+    return wrap;
+  }
+  function openMakeBouquet() {
+    var mine = entries.filter(function (e) { return e.owner === me.id && e.kind !== "black" && e.status === "confirmed" && !e.bouquet_id; }).sort(function (a, b) { return a.ts - b.ts; });
+    if (mine.length < 10) { toast("瓶子裡要有 10 朵花才能包成一束（現在 " + mine.length + " 朵）"); return; }
+    var ten = mine.slice(0, 10), d0 = new Date(ten[0].ts), d1 = new Date(ten[9].ts);
+    var def = d0.getMonth() === d1.getMonth() ? (d0.getMonth() + 1) + " 月的花" : (d0.getMonth() + 1) + "～" + (d1.getMonth() + 1) + " 月的花";
+    var name = el("input", { type: "text", id: "bq-name", placeholder: def, maxlength: "20" });
+    openPanel([
+      el("h2", { text: "💐 把最舊的 10 朵包成一束" }),
+      el("div", { class: "bq-stage" }, [bouquetEl(ten, 150)]),
+      el("p", { class: "legend", text: shortDate(dateKey(d0)) + " 到 " + shortDate(dateKey(d1)) + " 的 10 朵花，會從瓶子移到展示廳。朵數、獎勵和徽章都不會變少。" }),
+      el("label", { class: "field" }, [el("span", { text: "幫這束花取名字" }), name]),
+      el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "先不要", onclick: closeSheet }),
+        el("button", { class: "btn primary", text: "包起來", onclick: function () {
+          var nm = name.value.trim() || def;
+          closeSheet();
+          act(function () { return sb.rpc("cg_make_bouquet", { bowl: me.id, bname: nm }); }, "💐 「" + nm + "」放進展示廳了").then(function () { orbSig = ""; glowOrb(false); });
+        } })
+      ])
+    ]);
+  }
+  // 展示廳：一層層木架上放花束；readonly 是串門子時看好友的（看不到花上寫的話）
+  function openShowcase(readonly) {
+    var list = bouquets.slice().sort(function (a, b) { return a.ts - b.ts; });
+    var kids = [el("h2", { text: "🏛️ " + (readonly ? (visit ? visit.names + " 的" : "") + "展示廳" : "我們的展示廳") + "（" + list.length + " 束）" })];
+    if (!list.length) kids.push(el("p", { class: "legend", text: "還沒有花束。瓶子裡的花超過 15 朵時，可以把最舊的 10 朵包成一束放到這裡。" }));
+    for (var i = 0; i < list.length; i += 3) {
+      kids.push(el("div", { class: "shelf" }, list.slice(i, i + 3).map(function (b, k) {
+        var fl = bouquetFlowers(b), who = b.owner === me.id ? me : partner;
+        return el("button", { class: "shelf-item", onclick: function () { if (readonly) { toast("「" + (b.name || "花束") + "」：" + fl.length + " 朵花"); return; } openBouquet(b); } }, [
+          bouquetEl(fl, 82), el("b", { text: b.name || "第 " + (i + k + 1) + " 束" }), el("span", { text: nick(who) + "的瓶子・" + shortDate(dateKey(new Date(b.ts))) })]);
+      })));
+    }
+    kids.push(el("div", { class: "row" }, [el("button", { class: "btn primary", text: "關閉", onclick: closeSheet })]));
+    openPanel(kids);
+  }
+  function openBouquet(b) {
+    var fl = bouquetFlowers(b), name = el("input", { type: "text", value: b.name || "", maxlength: "20" });
+    var kids = [el("div", { class: "bq-stage" }, [bouquetEl(fl, 160)]), el("h2", { text: b.name || "花束" }),
+      el("p", { class: "legend", text: "從" + nick(b.owner === me.id ? me : partner) + "的瓶子包起來・" + shortDate(dateKey(new Date(b.ts))) })];
+    kids.push(el("ul", { class: "coaxlist" }, fl.map(function (e) {
+      return el("li", {}, [el("b", { text: (e.style ? flowerOf(e.style).name : "玫瑰") }), el("span", { text: (e.note || "（沒有寫話）") + "・" + shortDate(e.day) })]);
+    })));
+    kids.push(el("label", { class: "field" }, [el("span", { text: "改名字" }), name]));
+    kids.push(el("div", { class: "row" }, [
+      el("button", { class: "btn ghost", text: "回展示廳", onclick: function () { openShowcase(); } }),
+      el("button", { class: "btn primary", text: "儲存名字", onclick: function () {
+        var nm = name.value.trim(); closeSheet();
+        act(function () { return sb.from("cg_bouquets").update({ name: nm }).eq("id", b.id); }, "已改名");
+      } })
+    ]));
+    openPanel(kids);
   }
   // ---------- 成就徽章 ----------
   // 兩人共有。全部用現有資料算，舊用戶一上線就補發；算好的結果存一份到 cg_couples.badges，給好友串門子時看
