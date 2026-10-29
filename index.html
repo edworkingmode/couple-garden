@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Couple Garden 情侶花園</title>
-<meta name="app-version" content="51">
+<meta name="app-version" content="52">
 <meta name="theme-color" content="#010101">
 <meta name="color-scheme" content="dark">
 <meta name="darkreader-lock">
@@ -290,9 +290,9 @@ input::placeholder { color: var(--ink-faint); }
 /* 花的卡片 */
 .fcard { position: relative; margin: 4px 0 2px; padding: 26px 22px 22px; border-radius: 20px; text-align: center; background: linear-gradient(180deg, rgba(255,255,255,.07), rgba(255,255,255,.02)); border: 1px solid rgba(255,255,255,.12); animation: cardin .6s cubic-bezier(.2,.9,.3,1) both; }
 .fcard.black { background: linear-gradient(180deg, rgba(170,140,255,.1), rgba(255,255,255,.02)); }
-.fc-bloom { width: 130px; height: 128px; margin: 0 auto 6px; background: url(rose-red.png?v=51) center / contain no-repeat; filter: drop-shadow(0 6px 18px rgba(255,90,110,.35)); animation: bloomin .9s .15s cubic-bezier(.2,1.4,.4,1) both; }
-.fc-bloom.blue { background-image: url(rose-blue.png?v=51); filter: drop-shadow(0 6px 18px rgba(90,140,240,.35)); }
-.fc-bloom.black { background-image: url(rose-black.png?v=51); filter: drop-shadow(0 6px 18px rgba(170,140,255,.4)); }
+.fc-bloom { width: 130px; height: 128px; margin: 0 auto 6px; background: url(rose-red.png?v=52) center / contain no-repeat; filter: drop-shadow(0 6px 18px rgba(255,90,110,.35)); animation: bloomin .9s .15s cubic-bezier(.2,1.4,.4,1) both; }
+.fc-bloom.blue { background-image: url(rose-blue.png?v=52); filter: drop-shadow(0 6px 18px rgba(90,140,240,.35)); }
+.fc-bloom.black { background-image: url(rose-black.png?v=52); filter: drop-shadow(0 6px 18px rgba(170,140,255,.4)); }
 .fc-no { font-family: 'Instrument Serif', var(--font-display); font-style: italic; font-size: 34px; line-height: 1.1; }
 .fc-date { margin-top: 4px; font-size: 12px; letter-spacing: .2em; color: var(--ink-faint); }
 .fc-how { margin-top: 2px; font-size: 13px; letter-spacing: .08em; color: var(--ink-soft); }
@@ -327,11 +327,11 @@ input::placeholder { color: var(--ink-faint); }
   #ui .dock { bottom: max(10px, calc(env(safe-area-inset-bottom, 0px) - 20px)); }   /* 貼近螢幕下緣，只留一點點距離 */
 }
 /* 瓶子裡的玫瑰 */
-.pf .rose { position: absolute; top: -3.3%; right: -3.3%; bottom: -3.3%; left: -3.3%; background: url(rose-red-b.png?v=51) center bottom / contain no-repeat; transform-origin: 50% 100%; }
+.pf .rose { position: absolute; top: -3.3%; right: -3.3%; bottom: -3.3%; left: -3.3%; background: url(rose-red-b.png?v=52) center bottom / contain no-repeat; transform-origin: 50% 100%; }
 /* 腳下的影子：讓花插在苔蘚裡而不是浮著（不用濾鏡，iPhone 才畫得出來） */
 .pf::after { content: ""; position: absolute; left: 22%; right: 22%; bottom: -4%; height: 12%; border-radius: 50%; background: radial-gradient(ellipse at center, rgba(0,0,0,.6), rgba(0,0,0,0) 70%); z-index: -1; }
-.pf.blue .rose { background-image: url(rose-blue-b.png?v=51); }
-.pf.black .rose { background-image: url(rose-black-b.png?v=51); }
+.pf.blue .rose { background-image: url(rose-blue-b.png?v=52); }
+.pf.black .rose { background-image: url(rose-black-b.png?v=52); }
 .log li.black .what b { color: #c9b2ff; }
 /* 讓花和小精靈融進瓶子：頂光、底部暗、玻璃反光在最上層 */
 #orb-layer .orb-haze { position: absolute; border-radius: 50%; pointer-events: none; z-index: 100001;
@@ -368,8 +368,8 @@ input::placeholder { color: var(--ink-faint); }
 .libmonth { font-size: 13px !important; letter-spacing: .14em; color: var(--ink-soft); margin-top: 6px; }
 .libgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .libcell { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 10px 6px 10px; border-radius: 14px; background: rgba(255,255,255,.04); border: 1px solid var(--line); text-align: center; min-width: 0; }
-.librose { width: 56px; height: 56px; background: url(rose-red.png?v=51) center / contain no-repeat; }
-.librose.blue { background-image: url(rose-blue.png?v=51); }
+.librose { width: 56px; height: 56px; background: url(rose-red.png?v=52) center / contain no-repeat; }
+.librose.blue { background-image: url(rose-blue.png?v=52); }
 .libno { font-size: 11px; letter-spacing: .06em; color: var(--ink-faint); }
 .libnote { font-size: 12px; line-height: 1.4; color: var(--ink-soft); width: 100%; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .libmore { align-self: center; font-size: 13px; }
@@ -447,6 +447,29 @@ input::placeholder { color: var(--ink-faint); }
 .hubbtn.tile .hb-ico { width: auto; font-size: 20px; }
 .hubbtn.tile .hb-t span { font-size: 11px; }
 .hubbtn.tile .badge { position: absolute; top: 10px; right: 10px; margin: 0; }
+/* 生氣：雨雲、雨滴、彩虹、程度選擇、哄的話 */
+.raincloud { position: absolute; pointer-events: auto; cursor: pointer; z-index: 100003; -webkit-tap-highlight-color: transparent;
+  background: radial-gradient(circle at 26% 64%, #7f8794 0, #7f8794 12%, transparent 21%), radial-gradient(circle at 45% 46%, #959daa 0, #959daa 15%, transparent 26%), radial-gradient(circle at 64% 50%, #8a929f 0, #8a929f 13%, transparent 23%), radial-gradient(circle at 79% 66%, #788090 0, #788090 10%, transparent 19%), radial-gradient(ellipse 40% 22% at 52% 70%, #7a8290 0, #7a8290 55%, transparent 100%);
+  opacity: .78; animation: clouddrift 6s ease-in-out infinite; }
+.raincloud.lv3 { background: radial-gradient(circle at 26% 64%, #4b515c 0, #4b515c 12%, transparent 21%), radial-gradient(circle at 45% 46%, #5a606c 0, #5a606c 15%, transparent 26%), radial-gradient(circle at 64% 50%, #535965 0, #535965 13%, transparent 23%), radial-gradient(circle at 79% 66%, #474d58 0, #474d58 10%, transparent 19%), radial-gradient(ellipse 40% 22% at 52% 70%, #484e59 0, #484e59 55%, transparent 100%); opacity: .9; }
+@keyframes clouddrift { 0%, 100% { transform: translateX(-4px); } 50% { transform: translateX(4px); } }
+.raindrop { position: absolute; width: 1.5px; height: 14px; border-radius: 1px; background: linear-gradient(rgba(180,200,230,0), rgba(180,200,230,.75)); pointer-events: none; z-index: 100000; animation: raindrop .8s linear infinite; }
+@keyframes raindrop { from { transform: translateY(0); opacity: 0; } 10% { opacity: 1; } 85% { opacity: 1; } to { transform: translateY(var(--fall, 200px)); opacity: 0; } }
+.pet.sulk { transform: scale(.92) translateY(4px); opacity: .8; }
+.rainbow { position: absolute; pointer-events: none; z-index: 100003;
+  background: radial-gradient(50% 100% at 50% 100%, rgba(0,0,0,0) 74%, rgba(150,90,255,.7) 77%, rgba(80,140,255,.7) 81%, rgba(80,220,140,.7) 85%, rgba(255,230,90,.7) 89%, rgba(255,150,70,.7) 93%, rgba(255,80,90,.7) 97%, rgba(0,0,0,0) 100%);
+  animation: rainbow 6s ease forwards; }
+@keyframes rainbow { 0% { opacity: 0; transform: scale(.85); } 20% { opacity: 1; transform: none; } 75% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .raincloud, .raindrop { animation: none; } .raindrop { display: none; } }
+.aglv { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 8px 0 12px; }
+.aglvbtn { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 4px; border-radius: 14px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); color: var(--ink-soft); font: inherit; font-size: 12px; }
+.aglvbtn .e { font-size: 26px; }
+.aglvbtn.on { background: rgba(140,150,170,.22); border-color: rgba(180,190,210,.6); color: var(--ink); }
+.coaxchips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.coaxchips .chip { padding: 6px 10px; border-radius: 999px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); color: var(--ink); font: inherit; font-size: 12px; }
+.coaxlist { list-style: none; padding: 0; margin: 8px 0; display: flex; flex-direction: column; gap: 6px; }
+.coaxlist li { display: flex; gap: 8px; font-size: 13px; padding: 8px 10px; border-radius: 12px; background: rgba(255,255,255,.05); }
+.coaxlist b { font-weight: 500; flex: none; }
 </style>
 </head>
 <body>
@@ -468,7 +491,7 @@ input::placeholder { color: var(--ink-faint); }
 <div id="sheet-root"></div>
 <div id="toast-root"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="config.js?v=51"></script>
-<script src="app.js?v=51"></script>
+<script src="config.js?v=52"></script>
+<script src="app.js?v=52"></script>
 </body>
 </html>
