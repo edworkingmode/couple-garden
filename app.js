@@ -22,7 +22,7 @@
   var ASSET = (window.innerWidth <= 700 && window.innerHeight > window.innerWidth) ? ASSETS.mobile : ASSETS.full;
   var VID = { w: ASSET.w, h: ASSET.h }, ORB = ASSET.orb;
 
-  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [], rewards = [], claims = [], checkins = [], angers = [], coaxes = [], inbox = { blessings: [], guest: [], sent_today: [] }, bouquets = [];
+  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [], rewards = [], claims = [], checkins = [], angers = [], coaxes = [], inbox = { blessings: [], guest: [], sent_today: [] }, bouquets = [], wishes = [];
   var view = "me", dockPage = 0, busy = false, loaded = false, poller = null, connText = "";
   var sheetOnClose = null, cardQueue = [], seen = {}, shown = {}, animated = {}, cardShown = {}, entered = false;
 
@@ -210,7 +210,7 @@
     if (!n) {
       addPet(layer, bx, by, o);
       layer.appendChild(el("div", { class: "orb-hint", style: "left:" + o.cx + "px;top:" + (o.cy - 0.12 * o.ry) + "px", text: "第一朵花，等著被種下" }));
-      addFront(layer, o); addPot(layer, o);
+      addFront(layer, o); addPot(layer, o); addWell(layer, o);
       return;
     }
     var hF = Math.max(o.ry * 0.34, Math.min(o.ry * 0.6, o.ry * 0.6 * Math.sqrt(10 / Math.max(n, 10))));
@@ -270,7 +270,7 @@
     spin.place();
     grow(layer, o, list.filter(function (d) { return d.kind !== "black"; }).length, bx, by, hw, hh, S0, color);
     addPet(layer, bx, by, o);
-    addFront(layer, o); addPot(layer, o);
+    addFront(layer, o); addPot(layer, o); addWell(layer, o);
   }
   // 苔蘚小精靈：坐在瓶子中間的土上。待機會呼吸、晃小芽，放著不管會睡著，點一下就醒來跳一下
   var PET = { w: 150, h: 180, idle: 25, sleep: 30 };
@@ -302,7 +302,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=62"; PET_IMG.sleep.src = "pet-sleep.webp?v=62";
+  PET_IMG.idle.src = "pet-idle.webp?v=63"; PET_IMG.sleep.src = "pet-sleep.webp?v=63";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -408,8 +408,10 @@
       sb.from("cg_angers").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(200),
       sb.from("cg_coaxes").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(500),
       sb.rpc("cg_inbox"),
-      sb.from("cg_bouquets").select("*").eq("couple_id", me.couple_id).order("ts")
+      sb.from("cg_bouquets").select("*").eq("couple_id", me.couple_id).order("ts"),
+      sb.from("cg_wishes").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(200)
     ]);
+    wishes = res[13].error ? [] : (res[13].data || []);
     bouquets = res[12].error ? [] : (res[12].data || []);
     inbox = (!res[11].error && res[11].data) || { blessings: [], guest: [], sent_today: [] };
     angers = res[9].error ? [] : (res[9].data || []);   // 還沒建表時就當作沒有
@@ -883,6 +885,93 @@
     closeSheet();
     act(function () { return sb.from("cg_reward_claims").update({ status: ok ? "confirmed" : "rejected", reply: reply || "" }).eq("id", c.id); }, ok ? "兌換成立 🎁" : "已退回");
   }
+  // ---------- 許願池 ----------
+  // 說出想要的，交給對方決定：設成獎勵（對方定朵數）、直接答應，或先留著。沒有拒絕鍵；好友看不到
+  function wishFor(p) { return p && partner ? wishes.filter(function (w) { return w.status === "open" && w.owner !== p.id; }) : []; }
+  var WISH_ST = { open: "還在池子裡", reward: "變成獎勵了", granted: "答應了，等實現", done: "實現了 ✨" };
+  function addWell(layer, o) {
+    if (visit || !partner) return;
+    var W = o.rx * 0.34, glow = wishFor(me).length;
+    var box = el("div", { class: "well" + (glow ? " glow" : ""), role: "button", "aria-label": "許願池" + (glow ? "：有 " + glow + " 個新願望" : "") });
+    box.style.left = (o.cx - o.rx * 0.8 - W / 2) + "px"; box.style.top = (o.cy + o.ry * 1.08 - W * 0.62) + "px";
+    box.style.width = W + "px"; box.style.height = (W * 0.62) + "px";
+    box.appendChild(el("div", { class: "well-water" }));
+    box.appendChild(el("div", { class: "well-rim" }));
+    if (glow) box.appendChild(el("span", { class: "pot-n", text: String(glow) }));
+    box.addEventListener("click", openWishes);
+    layer.appendChild(box);
+  }
+  function wishRow(w, btns) {
+    return el("div", { class: "wish" + (w.status === "done" ? " done" : "") }, [
+      el("div", { class: "wish-t", text: w.text }),
+      el("div", { class: "wish-s", text: (w.status === "reward" ? "變成獎勵・" + w.cost + " 朵" : WISH_ST[w.status]) + (w.reply ? "・「" + w.reply + "」" : "") }),
+      btns && btns.length ? el("div", { class: "row" }, btns) : null
+    ]);
+  }
+  function openWishes() {
+    var pn = nick(partner), kids = [el("h2", { text: "🌠 許願池" }), el("p", { class: "legend", text: "說出想要的，讓" + pn + "決定：設成獎勵、直接答應，或先留著。" })];
+    var theirs = wishes.filter(function (w) { return w.owner === partner.id; }), mine = wishes.filter(function (w) { return w.owner === me.id; });
+    kids.push(el("h3", { text: pn + "的願望" }));
+    if (!theirs.length) kids.push(el("p", { class: "legend", text: "還沒有。" }));
+    theirs.forEach(function (w) {
+      kids.push(wishRow(w, w.status === "open" ? [
+        el("button", { class: "btn ghost", text: "直接答應", onclick: function () { openWishAnswer(w, "grant"); } }),
+        el("button", { class: "btn primary", text: "設成獎勵", onclick: function () { openWishAnswer(w, "reward"); } })
+      ] : null));
+    });
+    kids.push(el("h3", { text: "我的願望" }));
+    if (!mine.length) kids.push(el("p", { class: "legend", text: "還沒有，許一個吧。" }));
+    mine.forEach(function (w) {
+      var b = [];
+      if (w.status === "open") b.push(el("button", { class: "btn ghost", text: "收回", onclick: function () {
+        confirmPanel("收回這個願望？", w.text, "收回", function () { act(function () { return sb.from("cg_wishes").delete().eq("id", w.id); }, "已收回"); });
+      } }));
+      if (w.status === "granted") b.push(el("button", { class: "btn primary", text: "實現了", onclick: function () {
+        closeSheet(); act(function () { return sb.rpc("cg_wish_answer", { wid: w.id, act: "done" }); }, "願望實現了 ✨");
+      } }));
+      if (w.status === "reward") b.push(el("button", { class: "btn ghost", text: "去兌換", onclick: openRewards }));
+      kids.push(wishRow(w, b));
+    });
+    kids.push(el("button", { class: "btn primary", text: "＋ 許一個願望", onclick: openMakeWish }));
+    kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })]));
+    openPanel(kids);
+  }
+  function openMakeWish() {
+    var t = el("input", { type: "text", placeholder: "例如：想一起去看海", maxlength: "60" });
+    openPanel([
+      el("h2", { text: "許一個願望" }),
+      el("label", { class: "field" }, [el("span", { text: "願望" }), t]),
+      el("p", { class: "legend", text: nick(partner) + "會收到通知，決定要不要設成獎勵。" }),
+      el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "取消", onclick: openWishes }),
+        el("button", { class: "btn primary", text: "丟進池子", onclick: function () {
+          var v = t.value.trim(); if (!v) { toast("寫一下願望"); return; }
+          closeSheet();
+          act(function () { return sb.from("cg_wishes").insert({ couple_id: couple.id, owner: me.id, text: v, ts: Date.now() }); }, "願望丟進池子了 🌠");
+        } })
+      ])
+    ]);
+  }
+  function openWishAnswer(w, kind) {
+    var reward = kind === "reward";
+    var cost = el("input", { type: "number", placeholder: "需要幾朵，例如 20", min: "1", max: "9999", inputmode: "numeric" });
+    var msg = el("input", { type: "text", placeholder: "想說的話（可不填）", maxlength: "60" });
+    openPanel([
+      el("h2", { text: reward ? "設成獎勵" : "直接答應" }),
+      el("p", { class: "legend", text: "「" + w.text + "」" + (reward ? "：存夠朵數後，" + nick(partner) + "就能兌換。" : "：不用花，等實現後" + nick(partner) + "會按「實現了」。") }),
+      reward ? el("label", { class: "field" }, [el("span", { text: "朵數" }), cost]) : null,
+      el("label", { class: "field" }, [el("span", { text: "一句話" }), msg]),
+      el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "先留著", onclick: openWishes }),
+        el("button", { class: "btn primary", text: reward ? "設成獎勵" : "答應", onclick: function () {
+          var c = parseInt(cost.value, 10);
+          if (reward && !(c >= 1 && c <= 9999)) { toast("朵數要是 1 到 9999"); return; }
+          closeSheet();
+          act(function () { return sb.rpc("cg_wish_answer", { wid: w.id, act: reward ? "reward" : "grant", n: reward ? c : null, msg: msg.value.trim() || null }); }, reward ? "已變成獎勵 🎁" : "答應了 🌠");
+        } })
+      ])
+    ]);
+  }
   // ---------- 工具列的三個功能清單 ----------
   // 每個功能只放一個地方：互動＝跟對方一起做的事、回憶＝看過去、我的＝設定與說明
   var hubOn = "home";
@@ -920,6 +1009,7 @@
           hubBtn("✅", "待處理", pend.length ? pend.length + " 件等你確認" : "沒有要確認的", openPending, pend.length, "tile"),
           hubBtn("💗", "想你", "讓對方瓶子亮一下", function () { closeSheet(); sendMiss(); }, 0, "tile"),
           hubBtn("🎁", "獎勵", "用花換獎勵", openRewards, 0, "tile"),
+          hubBtn("🌠", "許願池", wishFor(me).length ? nick(partner) + "有 " + wishFor(me).length + " 個願望" : "說出想要的，讓對方決定", openWishes, wishFor(me).length, "tile"),
           hubBtn(angerOn(me.id) ? "🌧️" : "😤", angerOn(me.id) ? "你在生氣" : "生氣", angerOn(me.id) ? "看哄的話・消氣" : "讓對方瓶子下雨", startAnger, 0, "tile"),
           tickets().length ? hubBtn("🎟️", "待兌現的券", owed ? pn + "欠你 " + owed + " 張" : "你欠" + pn + "的", openTickets, 0, "tile") : null,
           hubBtn("💐", "包成花束", "把瓶子裡最舊的 10 朵包起來", openMakeBouquet, 0, "tile"),
@@ -963,6 +1053,7 @@
     if (myAnger) todo.push({ t: "🌧️ 你在生氣中" + (coaxOf(myAnger).length ? "・" + nick(partner) + "哄了 " + coaxOf(myAnger).length + " 次" : ""), go: function () { openAnger(myAnger); } });
     if (pend.length) todo.push({ t: "🔔 " + pend.length + " 件等你確認", go: openPending });
     if (!a) todo.push({ t: "💌 今天還沒報平安，點我", go: openCheckin });
+    if (wishFor(me).length) todo.push({ t: "🌠 " + nick(partner) + "許了 " + wishFor(me).length + " 個願望", go: openWishes });
     if (owed) todo.push({ t: "🎟️ " + nick(partner) + "欠你 " + owed + " 張券", go: openTickets });
     var loose = entries.filter(function (e) { return e.owner === me.id && e.kind !== "black" && e.status === "confirmed" && !e.bouquet_id; }).length;
     if (loose > BOWL_MAX) todo.push({ t: "💐 瓶子快滿了，把最舊的 10 朵包成花束", go: openMakeBouquet });
