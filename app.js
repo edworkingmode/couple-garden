@@ -175,7 +175,7 @@
     // 每 8 秒會重新抓資料；花和尺寸都沒變就不重畫，不然小精靈和花會一閃一閃
     var lit = owner ? claims.filter(function (c) { return c.owner === owner.id && c.status === "done"; }).length : 0;
     var rain = rainOver(owner); petSulk = !!rain;
-    var sig = (owner ? owner.id + gardenColor(owner) : "") + "|" + lit + "|p" + potCount() + "|" + (rain ? rain.id + rain.level : "") + (rainbowNext ? "r" : "") + (calmSig() ? "c" : "") + "|" + list.map(function (d) { return d.id + d.status; }).join(",") + "|" + [o.cx, o.cy, o.rx, o.ry].map(Math.round).join(",");
+    var sig = (owner ? owner.id + gardenColor(owner) : "") + "|" + lit + "|p" + potCount() + "|" + (rain ? rain.id + rain.level : "") + (rainbowNext ? "r" : "") + (calmSig() ? "c" : "") + "|" + list.map(function (d) { return d.id + d.status + (d.style || ""); }).join(",") + "|" + [o.cx, o.cy, o.rx, o.ry].map(Math.round).join(",");
     var hasNew = fresh && Object.keys(fresh).length;
     if (sig === orbSig && !hasNew && layer.childNodes.length) return;
     orbSig = sig;
@@ -207,7 +207,7 @@
         a: i * 2.39996 + wrap * 0.7,
         jx: (seeded(i + 90) - 0.5) * hF * 0.5, jy: wrap * 3 + (seeded(i + 91) - 0.5) * hF * 0.3 };
       var isNew = !!(fresh && fresh[d.id]);
-      var f = photoFlower(i + seedOff, isNew, S0, ATLAS[d.kind === "black" ? "black" : color]);
+      var f = photoFlower(i + seedOff, isNew, S0, flowerClass(d, color));
       if (isNew) { f.style.animationDelay = (bloomIdx++ * 0.25) + "s"; animated[d.id] = 1; setTimeout(pokePet, 1400); }
       f.addEventListener("click", function () {
         if (spin.moved) return;
@@ -267,7 +267,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=55"; PET_IMG.sleep.src = "pet-sleep.webp?v=55";
+  PET_IMG.idle.src = "pet-idle.webp?v=56"; PET_IMG.sleep.src = "pet-sleep.webp?v=56";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -456,7 +456,7 @@
 
   // ---------- 寫入 ----------
   function insertEntry(o) {
-    return sb.from("cg_entries").insert({ couple_id: couple.id, owner: o.owner, created_by: me.id, task_id: o.task_id || null, kind: o.kind, status: o.status, day: today(), note: o.note || "", reply: "", ts: Date.now() });
+    return sb.from("cg_entries").insert({ couple_id: couple.id, owner: o.owner, created_by: me.id, task_id: o.task_id || null, kind: o.kind, status: o.status, day: today(), note: o.note || "", reply: "", ts: Date.now(), style: o.style || null });
   }
   function updateEntry(e, patch) { return sb.from("cg_entries").update(patch).eq("id", e.id); }
   function claimTask(t, note) {
@@ -465,11 +465,83 @@
     act(function () { return insertEntry({ owner: t.doer, task_id: t.id, kind: "task", status: mineTask ? "pending" : "confirmed", note: note }); },
       mineTask ? "已送出，等" + nick(partner) + "確認" : "已幫" + nick(partner) + "記上一朵");
   }
-  function requestFlower(reason) {
+  function requestFlower(reason, style) {
     if (reqsToday().length >= REQ_PER_DAY) { toast("今天已經申請 " + REQ_PER_DAY + " 次了，明天再來"); return; }
-    act(function () { return insertEntry({ owner: me.id, kind: "request", status: "pending", note: reason }); }, "已送出，等" + nick(partner) + "確認");
+    act(function () { return insertEntry({ owner: me.id, kind: "request", status: "pending", note: reason, style: style }); }, "已送出，等" + nick(partner) + "確認");
   }
-  function giveFlower(reason) { act(function () { return insertEntry({ owner: partner.id, kind: "gift", status: "confirmed", note: reason }); }, "送出了，" + nick(partner) + "的瓶子長出一朵"); }
+  function giveFlower(reason, style) { act(function () { return insertEntry({ owner: partner.id, kind: "gift", status: "confirmed", note: reason, style: style }); }, "送出了，" + nick(partner) + "的瓶子長出一朵" + flowerOf(style).name); }
+  // ---------- 花的種類 ----------
+  // 送花（或申請）的人選花的種類，每種有花語；一部分要靠徽章解鎖。舊的花沒有種類，照舊用紅／藍玫瑰
+  var FLOWERS = [
+    { id: "rose", name: "玫瑰", lang: "愛", img: "rose-red-b.png" },
+    { id: "tulip", name: "鬱金香", lang: "體貼、真誠", img: "flower-tulip.png" },
+    { id: "daisy", name: "雛菊", lang: "藏在心底的愛", img: "flower-daisy.png" },
+    { id: "cherry", name: "櫻花", lang: "珍惜當下", img: "flower-cherry.png", unlock: "f10" },
+    { id: "sunflower", name: "向日葵", lang: "只看著你", img: "flower-sunflower.png", unlock: "s7" },
+    { id: "lavender", name: "薰衣草", lang: "等待愛情", img: "flower-lavender.png", unlock: "a1" },
+    { id: "camellia", name: "山茶花", lang: "理想的愛", img: "flower-camellia.png", unlock: "d1" },
+    { id: "lily", name: "鈴蘭", lang: "幸福歸來", img: "flower-lily.png", unlock: "s30" }
+  ];
+  function flowerOf(id) { return FLOWERS.filter(function (f) { return f.id === id; })[0] || FLOWERS[0]; }
+  function flowerClass(d, color) {
+    if (d.kind === "black") return ATLAS.black;
+    if (d.style && d.style !== "rose") return " fl-" + d.style;
+    return d.style === "rose" ? ATLAS.red : ATLAS[color];
+  }
+  function flowerUnlocked(f) { return !f.unlock || earnedBadges().indexOf(f.unlock) >= 0; }
+  function badgeName(id) { var b = BADGES.filter(function (x) { return x.id === id; })[0]; return b ? b.icon + " " + b.name : ""; }
+  function myFlower() { var f = flowerOf(me.flower); return flowerUnlocked(f) ? f.id : "rose"; }
+  // 選花：上方是瓶子裡的預覽，下方一排花；input 為 null 時只選花（設定招牌花用）
+  function flowerPicker(cur, onPick) {
+    var prev = el("div", { class: "fpv" }), img = el("div", { class: "fpv-f" }), cap = el("div", { class: "fpv-cap" });
+    prev.appendChild(img); prev.appendChild(cap);
+    var row = el("div", { class: "fpick" });
+    function show(id) {
+      var f = flowerOf(id); cur = id;
+      img.style.backgroundImage = "url(" + f.img + ")";
+      img.classList.remove("grow"); void img.offsetWidth; img.classList.add("grow");
+      cap.textContent = f.name + "・" + f.lang;
+      [].forEach.call(row.children, function (c) { c.classList.toggle("on", c._id === id); });
+      onPick(id);
+    }
+    FLOWERS.forEach(function (f) {
+      var ok = flowerUnlocked(f);
+      var b = el("button", { class: "fchip" + (ok ? "" : " locked"), "aria-label": f.name }, [el("span", { class: "fc-img", style: "background-image:url(" + f.img + ")" }), el("span", { class: "fc-n", text: ok ? f.name : "🔒 " + f.name })]);
+      b._id = f.id;
+      b.addEventListener("click", function () { if (!ok) { toast("解鎖「" + badgeName(f.unlock) + "」徽章就能用" + f.name); return; } show(f.id); });
+      row.appendChild(b);
+    });
+    setTimeout(function () { show(cur); }, 0);
+    return el("div", {}, [prev, row]);
+  }
+  function openFlowerInput(title, placeholder, okLabel, onOk) {
+    var style = myFlower();
+    var input = el("input", { type: "text", id: "sheet-input", placeholder: placeholder, maxlength: "80", "aria-label": placeholder });
+    openPanel([
+      el("h2", { text: title }),
+      flowerPicker(style, function (id) { style = id; }),
+      input,
+      el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "取消", onclick: closeSheet }),
+        el("button", { class: "btn primary", text: okLabel, onclick: function () { var v = input.value.trim(); if (!v) { toast("寫一句這朵花的意義吧"); return; } closeSheet(); onOk(v, style); } })
+      ])
+    ]);
+  }
+  function openSignature() {
+    var style = myFlower();
+    openPanel([
+      el("h2", { text: "🌸 我的招牌花" }),
+      el("p", { class: "legend", text: "送花或申請花時預設用這種，送的時候還是可以換。還沒解鎖的花，拿到對應的徽章就能用。" }),
+      flowerPicker(style, function (id) { style = id; }),
+      el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "取消", onclick: closeSheet }),
+        el("button", { class: "btn primary", text: "設為招牌花", onclick: function () {
+          closeSheet(); me.flower = style;
+          act(function () { return sb.from("cg_profiles").update({ flower: style }).eq("id", me.id); }, "招牌花換成" + flowerOf(style).name);
+        } })
+      ])
+    ]);
+  }
   function sendMiss() {
     if (!partner) { toast("等對方加入後才能傳"); return; }
     var last = +(lsGet("cg-miss-sent") || 0);
@@ -787,11 +859,11 @@
   function startRequest() {
     if (!partner) { toast("等對方加入後才能申請"); return; }
     if (REQ_PER_DAY - reqsToday().length <= 0) { toast("今天已經申請 " + REQ_PER_DAY + " 次了，明天再來"); return; }
-    openInput("申請一朵花", "這朵花的意義，例如：今天有好好吃三餐", "送出申請", requestFlower, true);
+    openFlowerInput("申請一朵花", "這朵花的意義，例如：今天有好好吃三餐", "送出申請", requestFlower);
   }
   function startGive() {
     if (!partner) { toast("等對方加入後才能送"); return; }
-    openInput("送" + nick(partner) + "一朵花", "這朵花的意義，例如：謝謝你今天陪我", "送出", giveFlower, true);
+    openFlowerInput("送" + nick(partner) + "一朵花", "這朵花的意義，例如：謝謝你今天陪我", "送出", giveFlower);
   }
   function startBlack() {
     if (!partner) { toast("等對方加入後才能給"); return; }
@@ -830,6 +902,7 @@
         el("div", { class: "hubgrid" }, [
           hubBtn("⚙️", "設定", "暱稱、時區、花色、通知、配對", openSettings),
           hubBtn("🔢", "首頁要顯示的天數", "選要在首頁看到哪些天數", openUs),
+          hubBtn("🌸", "我的招牌花", "現在是" + flowerOf(myFlower()).name + "，送花時預設用這種", openSignature),
           hubBtn("🏅", "徽章", "已解鎖 " + earnedBadges().length + "／" + BADGES.length + "，看看還能挑戰什麼", function () { openBadges(); }),
           hubBtn("👫", "好友", "加好友、去好友家串門子", openFriends),
           hubBtn("🧭", "使用說明", "重新看一次所有功能怎麼用", function () { showIntro(0); }),
