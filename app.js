@@ -22,7 +22,7 @@
   var ASSET = (window.innerWidth <= 700 && window.innerHeight > window.innerWidth) ? ASSETS.mobile : ASSETS.full;
   var VID = { w: ASSET.w, h: ASSET.h }, ORB = ASSET.orb;
 
-  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [], rewards = [], claims = [], checkins = [], angers = [], coaxes = [];
+  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [], rewards = [], claims = [], checkins = [], angers = [], coaxes = [], inbox = { blessings: [], guest: [], sent_today: [] };
   var view = "me", dockPage = 0, busy = false, loaded = false, poller = null, connText = "";
   var sheetOnClose = null, cardQueue = [], seen = {}, shown = {}, animated = {}, cardShown = {}, entered = false;
 
@@ -175,7 +175,7 @@
     // 每 8 秒會重新抓資料；花和尺寸都沒變就不重畫，不然小精靈和花會一閃一閃
     var lit = owner ? claims.filter(function (c) { return c.owner === owner.id && c.status === "done"; }).length : 0;
     var rain = rainOver(owner); petSulk = !!rain;
-    var sig = (owner ? owner.id + gardenColor(owner) : "") + "|" + lit + "|" + (rain ? rain.id + rain.level : "") + (rainbowNext ? "r" : "") + (calmSig() ? "c" : "") + "|" + list.map(function (d) { return d.id + d.status; }).join(",") + "|" + [o.cx, o.cy, o.rx, o.ry].map(Math.round).join(",");
+    var sig = (owner ? owner.id + gardenColor(owner) : "") + "|" + lit + "|p" + potCount() + "|" + (rain ? rain.id + rain.level : "") + (rainbowNext ? "r" : "") + (calmSig() ? "c" : "") + "|" + list.map(function (d) { return d.id + d.status; }).join(",") + "|" + [o.cx, o.cy, o.rx, o.ry].map(Math.round).join(",");
     var hasNew = fresh && Object.keys(fresh).length;
     if (sig === orbSig && !hasNew && layer.childNodes.length) return;
     orbSig = sig;
@@ -194,7 +194,7 @@
     if (!n) {
       addPet(layer, bx, by, o);
       layer.appendChild(el("div", { class: "orb-hint", style: "left:" + o.cx + "px;top:" + (o.cy - 0.12 * o.ry) + "px", text: "第一朵花，等著被種下" }));
-      addFront(layer, o);
+      addFront(layer, o); addPot(layer, o);
       return;
     }
     var hF = Math.max(o.ry * 0.34, Math.min(o.ry * 0.6, o.ry * 0.6 * Math.sqrt(10 / Math.max(n, 10))));
@@ -235,7 +235,7 @@
     spin.place();
     grow(layer, o, list.filter(function (d) { return d.kind !== "black"; }).length, bx, by, hw, hh, S0, color);
     addPet(layer, bx, by, o);
-    addFront(layer, o);
+    addFront(layer, o); addPot(layer, o);
   }
   // 苔蘚小精靈：坐在瓶子中間的土上。待機會呼吸、晃小芽，放著不管會睡著，點一下就醒來跳一下
   var PET = { w: 150, h: 180, idle: 25, sleep: 30 };
@@ -267,7 +267,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=53"; PET_IMG.sleep.src = "pet-sleep.webp?v=53";
+  PET_IMG.idle.src = "pet-idle.webp?v=54"; PET_IMG.sleep.src = "pet-sleep.webp?v=54";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -371,8 +371,10 @@
       sb.from("cg_reward_claims").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(200),
       sb.from("cg_checkins").select("*").eq("couple_id", me.couple_id).order("day", { ascending: false }).limit(800),
       sb.from("cg_angers").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(200),
-      sb.from("cg_coaxes").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(500)
+      sb.from("cg_coaxes").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(500),
+      sb.rpc("cg_inbox")
     ]);
+    inbox = (!res[11].error && res[11].data) || { blessings: [], guest: [], sent_today: [] };
     angers = res[9].error ? [] : (res[9].data || []);   // 還沒建表時就當作沒有
     coaxes = res[10].error ? [] : (res[10].data || []);
     checkins = res[8].error ? [] : (res[8].data || []);
@@ -820,6 +822,7 @@
         el("div", { class: "hubgrid" }, [
           hubBtn("📖", "花花圖書館", "每一朵花和它的話，依月份收好", function () { libTab = "in"; openLibrary(); }),
           hubBtn("📅", "紀念日", "在一起、認識、生日、下次見面", openUs),
+          hubBtn("📝", "留言簿與祝福花", "好友送的祝福花 " + (inbox.blessings || []).length + " 朵・留言 " + (inbox.guest || []).length + " 則", openGuestbook, inboxNew()),
           partner ? hubBtn("💌", "報平安紀錄", "今天和最近 7 天", openCheckinView) : null
         ])];
     } else {
@@ -848,6 +851,7 @@
     if (pend.length) todo.push({ t: "🔔 " + pend.length + " 件等你確認", go: openPending });
     if (!a) todo.push({ t: "💌 今天還沒報平安，點我", go: openCheckin });
     if (owed) todo.push({ t: "🎟️ " + nick(partner) + "欠你 " + owed + " 張券", go: openTickets });
+    if (inboxNew()) todo.push({ t: "🤍 好友來串門子了，看看他們留下什麼", go: openBlessings });
     if (!todo.length) return checkinLine();
     checkinLine();   // 照常檢查連續天數的慶祝卡
     var first = todo[0];
@@ -949,7 +953,7 @@
   function endVisit() { visit = null; orbSig = ""; route(); }
   // 借用自己家的畫法：暫時把「我、對方、花、燈、天氣」換成好友的資料來畫瓶子，畫完立刻換回來
   function asVisit(fn) {
-    var keep = [me, partner, couple, entries, claims, angers, coaxes, dates];
+    var keep = [me, partner, couple, entries, claims, angers, coaxes, dates];   // 小花盆的數量由 potCount() 看 visit 決定
     var m = visit.data.members, k = visit.idx;
     me = Object.assign({}, m[k]); partner = m[1 - k] ? Object.assign({}, m[1 - k]) : null;
     couple = Object.assign({}, visit.data.couple); entries = visit.data.entries; claims = visit.data.claims; angers = visit.data.angers; coaxes = []; dates = [];
@@ -972,10 +976,101 @@
       el("p", { class: "daysline", text: visit.names + (info.days.length ? "・" + info.days.slice(0, 1).map(dayPhrase).join("") : "") }),
       el("p", { class: "visitnote", text: "👀 串門子中：看得到瓶子，看不到花上寫的話" })
     ]));
+    var blessed = visit.data.blessed_today;
     ui.appendChild(el("div", { class: "dock liquid-glass tabs4 visitdock" }, [
-      el("button", { class: "btn primary", text: "← 回到我們的花園", onclick: endVisit })
+      el("button", { class: "btn ghost", text: "← 回家", onclick: endVisit }),
+      el("button", { class: "btn" + (blessed ? " ghost" : " primary"), text: blessed ? "🤍 今天送過了" : "🤍 送祝福花", onclick: function () { if (blessed) { toast("每天可以送一朵，明天再來"); return; } openBless(); } }),
+      el("button", { class: "btn ghost", text: "📝 留言", onclick: openGuestWrite })
     ]));
     layoutVideo();
+  }
+  // ---------- 祝福花與留言簿 ----------
+  // 好友每天可以送一朵白色祝福花，放在瓶子右下角的小花盆；也可以在好友家留一句話。都不算進兩人的朵數
+  function potCount() { return visit ? (visit.data.blessings || 0) : (inbox.blessings || []).length; }
+  function addPot(layer, o) {
+    var n = potCount(); if (!n) return;
+    var W = o.rx * 0.42, box = el("div", { class: "pot", role: "button", "aria-label": "祝福花小花盆：" + n + " 朵" });
+    box.style.left = (o.cx + o.rx * 0.8 - W / 2) + "px"; box.style.top = (o.cy + o.ry * 1.08 - W * 1.25) + "px";
+    box.style.width = W + "px"; box.style.height = (W * 1.25) + "px";
+    var k = Math.min(3, n);
+    for (var i = 0; i < k; i++) {
+      var r = el("div", { class: "pot-rose" });
+      r.style.left = (50 + (i - (k - 1) / 2) * 26) + "%"; r.style.transform = "translateX(-50%) rotate(" + ((i - (k - 1) / 2) * 14) + "deg)";
+      r.style.height = (86 - Math.abs(i - (k - 1) / 2) * 10) + "%";
+      box.appendChild(r);
+    }
+    box.appendChild(el("div", { class: "pot-body" }));
+    box.appendChild(el("span", { class: "pot-n", text: String(n) }));
+    box.addEventListener("click", function () { if (visit) { toast("好友收到的祝福花：" + n + " 朵"); return; } openBlessings(); });
+    layer.appendChild(box);
+  }
+  function inboxNew() {
+    var seen = +(lsGet("cg-inbox-seen-" + me.id) || 0), all = (inbox.blessings || []).concat(inbox.guest || []);
+    return all.filter(function (x) { return x.ts > seen; }).length;
+  }
+  function markInboxSeen() {
+    var all = (inbox.blessings || []).concat(inbox.guest || []), mx = all.reduce(function (m, x) { return Math.max(m, x.ts); }, 0);
+    if (mx) lsSet("cg-inbox-seen-" + me.id, mx);
+  }
+  function whenText(ts) { var t = new Date(ts); return shortDate(dateKey(t)) + " " + pad(t.getHours()) + ":" + pad(t.getMinutes()); }
+  function openBlessings() {
+    var list = inbox.blessings || [], kids = [el("h2", { text: "🤍 祝福花（" + list.length + "）" }),
+      el("p", { class: "legend", text: "好友來串門子時送的花，放在瓶子旁的小花盆裡，不算進你們的朵數。" })];
+    if (!list.length) kids.push(el("p", { class: "legend", text: "還沒有。加好友後，他們就能送你們祝福花。" }));
+    kids.push(el("ul", { class: "coaxlist" }, list.slice(0, 50).map(function (b) {
+      return el("li", {}, [el("b", { text: b.from || "好友" }), el("span", { text: (b.note || "送了一朵祝福花") + "・" + whenText(b.ts) })]);
+    })));
+    kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "留言簿", onclick: openGuestbook }), el("button", { class: "btn primary", text: "關閉", onclick: closeSheet })]));
+    markInboxSeen(); openPanel(kids);
+  }
+  function openGuestbook() {
+    var list = inbox.guest || [], kids = [el("h2", { text: "📝 留言簿（" + list.length + "）" }),
+      el("p", { class: "legend", text: "好友在你們家留下的話，只有你們兩個人和留言的人看得到。可以刪除。" })];
+    if (!list.length) kids.push(el("p", { class: "legend", text: "還沒有留言。" }));
+    list.slice(0, 80).forEach(function (g) {
+      kids.push(el("div", { class: "fitem" }, [el("div", { class: "fi-t" }, [el("b", { text: g.from || "好友" }), el("span", { text: g.text + "・" + whenText(g.ts) })]),
+        el("button", { class: "btn ghost", text: "刪除", onclick: function () {
+          confirmPanel("刪除這則留言？", "刪除後就找不回來了。", "刪除", function () { act(function () { return sb.from("cg_guestbook").delete().eq("id", g.id); }, "已刪除"); });
+        } })]));
+    });
+    kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "祝福花", onclick: openBlessings }), el("button", { class: "btn primary", text: "關閉", onclick: closeSheet })]));
+    markInboxSeen(); openPanel(kids);
+  }
+  function openBless() {
+    var note = el("input", { type: "text", id: "bless-note", placeholder: "附一句祝福（可不填）", maxlength: "60" });
+    openPanel([
+      el("h2", { text: "🤍 送 " + visit.names + " 一朵祝福花" }),
+      el("p", { class: "legend", text: "會放在他們瓶子旁的小花盆裡。每對好友每天可以送一朵。" }),
+      el("label", { class: "field" }, [el("span", { text: "祝福" }), note]),
+      el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "取消", onclick: closeSheet }),
+        el("button", { class: "btn primary", text: "送出", onclick: async function () {
+          closeSheet();
+          var r = await sb.rpc("cg_bless", { target: visit.data.couple.id, note: note.value.trim() });
+          if (r.error) { toast(/already/.test(r.error.message || "") ? "今天已經送過了" : friendErr(r.error)); return; }
+          visit.data.blessed_today = true; visit.data.blessings = (visit.data.blessings || 0) + 1; orbSig = "";
+          toast("🤍 祝福花送到了"); haptic(); renderVisit();
+        } })
+      ])
+    ]);
+  }
+  function openGuestWrite() {
+    var t = el("input", { type: "text", id: "guest-text", placeholder: "例如：你們的花園好美！", maxlength: "60" });
+    openPanel([
+      el("h2", { text: "📝 在 " + visit.names + " 家留言" }),
+      el("p", { class: "legend", text: "他們兩個人都看得到，也可以刪除。最多 60 字。" }),
+      t,
+      el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "取消", onclick: closeSheet }),
+        el("button", { class: "btn primary", text: "留言", onclick: async function () {
+          var v = t.value.trim(); if (!v) { toast("寫一句話吧"); return; }
+          closeSheet();
+          var r = await sb.rpc("cg_guest_write", { target: visit.data.couple.id, msg: v });
+          if (r.error) { toast(friendErr(r.error)); return; }
+          toast("📝 留言送出了"); haptic();
+        } })
+      ])
+    ]);
   }
   // ---------- 待兌現的券 ----------
   // 兌換成立後，獎勵還沒真的發生：主畫面留一張券提醒兩個人，兌換的人收到後按「收到了」，瓶子裡多一盞小燈
