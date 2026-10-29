@@ -157,6 +157,10 @@
     return { cx: L.left + ORB.cx * VID.w * L.s, cy: L.top + ORB.cy * VID.h * L.s, rx: ORB.rx * VID.w * L.s, ry: ORB.ry * VID.h * L.s };
   }
   // 一朵玫瑰（含莖和葉）。每朵用編號決定左右翻轉、歪斜和高矮，看起來才不會一模一樣
+  // 把花的 id（uuid）變成固定的數字，當作亂數種子
+  function idSeed(id) { var h = 0, s = String(id); for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1000003; return h; }
+  // 花頭比較大的花種縮小一點，跟玫瑰看起來差不多大
+  var STYLE_SIZE = { tulip: 0.82, camellia: 0.84, sunflower: 0.88, daisy: 0.9, cherry: 0.94 };
   // 花的圖檔（給遠近暗影的遮罩用，要跟 CSS 的背景圖一致）
   function atlasImg(atlas) {
     var c = (atlas || "").trim();
@@ -165,8 +169,8 @@
     return "rose-red-b.png";
   }
   function photoFlower(i, isNew, S, atlas) {
-    // 每朵高矮不同（0.72～1.27 倍），左右翻轉、歪斜也不同，看起來才像自然長出來的
-    var flip = seeded(i * 5 + 2) > 0.5 ? -1 : 1, tilt = (seeded(i * 7 + 3) - 0.5) * 18, k = 0.72 + seeded(i * 13 + 5) * 0.55;
+    // 每朵高矮不同（0.8～1.15 倍），左右翻轉、歪斜也不同，看起來才像自然長出來的
+    var flip = seeded(i * 5 + 2) > 0.5 ? -1 : 1, tilt = (seeded(i * 7 + 3) - 0.5) * 18, k = 0.8 + seeded(i * 13 + 5) * 0.35;
     var w = S * 0.72 * k, H = w * 360 / 365;
     var f = el("div", { class: "pf" + atlas + (isNew ? " new" : ""), "aria-hidden": "true" });
     f.style.width = w + "px"; f.style.height = H + "px";
@@ -214,12 +218,13 @@
     var M = 40, items = [], bloomIdx = 0, seedOff = owner && partner && owner.id === partner.id ? 500 : 0;
     var color = gardenColor(owner);
     list.forEach(function (d, i) {
-      var k = i % M, wrap = Math.floor(i / M);
-      var it = { i: i, d: d, r: (0.62 + 0.38 * Math.sqrt((k + 0.5) / M)) * (wrap ? 0.92 : 1),   // 中間留給小精靈，花不會被牠擋住
-        a: i * 2.39996 + wrap * 0.7,
-        jx: (seeded(i + 90) - 0.5) * hF * 0.5, jy: wrap * 3 + (seeded(i + 91) - 0.5) * hF * 0.3 };
+      // 位置、高矮都用這朵花自己的編號算，加花或包花束時，其他花不會跟著換位置
+      var h = idSeed(d.id), wrap = 0;
+      var it = { i: i, d: d, r: 0.62 + 0.38 * Math.sqrt(seeded(h + 11)),   // 中間留給小精靈，花不會被牠擋住
+        a: seeded(h + 7) * Math.PI * 2,
+        jx: (seeded(h + 90) - 0.5) * hF * 0.5, jy: (seeded(h + 91) - 0.5) * hF * 0.3 };
       var isNew = !!(fresh && fresh[d.id]);
-      var f = photoFlower(i + seedOff, isNew, S0, flowerClass(d, color));
+      var f = photoFlower(h + seedOff, isNew, S0 * (STYLE_SIZE[d.style] || 1), flowerClass(d, color));
       if (isNew) { f.style.animationDelay = (bloomIdx++ * 0.25) + "s"; animated[d.id] = 1; setTimeout(pokePet, 1400); }
       f.addEventListener("click", function () {
         if (spin.moved) return;
@@ -240,7 +245,7 @@
         if (y < pb.foot && Math.abs(x - pb.x) < gap) x = pb.x + (x >= pb.x ? gap : -gap);
         var dp = Math.max(0, Math.min(1, (y - (by - hh)) / (2 * hh)));
         it.f.style.left = (x - it.f._W / 2) + "px"; it.f.style.top = (y - it.f._H) + "px";
-        var sc = 0.66 + 0.36 * dp;                                   // 近大遠小
+        var sc = 0.68 + 0.3 * dp;                                   // 近大遠小
         it.f.style.scale = sc.toFixed(3);
         it.f.style.opacity = (0.9 + 0.1 * dp).toFixed(2);
         it.f._shade.style.opacity = (0.62 * (1 - dp) + 0.05).toFixed(2);   // 後排比較暗
@@ -287,7 +292,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=58"; PET_IMG.sleep.src = "pet-sleep.webp?v=58";
+  PET_IMG.idle.src = "pet-idle.webp?v=59"; PET_IMG.sleep.src = "pet-sleep.webp?v=59";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
