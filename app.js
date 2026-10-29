@@ -302,7 +302,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=63"; PET_IMG.sleep.src = "pet-sleep.webp?v=63";
+  PET_IMG.idle.src = "pet-idle.webp?v=64"; PET_IMG.sleep.src = "pet-sleep.webp?v=64";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -889,15 +889,14 @@
   // 說出想要的，交給對方決定：設成獎勵（對方定朵數）、直接答應，或先留著。沒有拒絕鍵；好友看不到
   function wishFor(p) { return p && partner ? wishes.filter(function (w) { return w.status === "open" && w.owner !== p.id; }) : []; }
   var WISH_ST = { open: "還在池子裡", reward: "變成獎勵了", granted: "答應了，等實現", done: "實現了 ✨" };
-  function addWell(layer, o) {
+  function addWell(layer, o) {   // 許願星瓶：瓶子左下角，跟右邊的祝福花盆對稱；有新願望時星星微微發光
     if (visit || !partner) return;
-    var W = o.rx * 0.34, glow = wishFor(me).length;
-    var box = el("div", { class: "well" + (glow ? " glow" : ""), role: "button", "aria-label": "許願池" + (glow ? "：有 " + glow + " 個新願望" : "") });
-    box.style.left = (o.cx - o.rx * 0.8 - W / 2) + "px"; box.style.top = (o.cy + o.ry * 1.08 - W * 0.62) + "px";
-    box.style.width = W + "px"; box.style.height = (W * 0.62) + "px";
-    box.appendChild(el("div", { class: "well-water" }));
-    box.appendChild(el("div", { class: "well-rim" }));
-    if (glow) box.appendChild(el("span", { class: "pot-n", text: String(glow) }));
+    var W = o.rx * 0.5, glow = wishFor(me).length;
+    var box = el("div", { class: "jar" + (glow ? " glow" : ""), role: "button", "aria-label": "許願星瓶" + (glow ? "：有 " + glow + " 個新願望" : "") });
+    box.style.left = (o.cx - o.rx * 0.8 - W / 2) + "px"; box.style.top = (o.cy + o.ry * 1.08 - W * 1.25) + "px";
+    box.style.width = W + "px"; box.style.height = (W * 1.25) + "px";
+    box.appendChild(el("div", { class: "jar-img" }));
+    if (glow) { box.appendChild(el("div", { class: "jar-glow" })); box.appendChild(el("span", { class: "pot-n", text: String(glow) })); }
     box.addEventListener("click", openWishes);
     layer.appendChild(box);
   }
