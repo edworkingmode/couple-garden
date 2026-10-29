@@ -220,7 +220,7 @@
     list.forEach(function (d, i) {
       // 位置、高矮都用這朵花自己的編號算，加花或包花束時，其他花不會跟著換位置
       var h = idSeed(d.id), wrap = 0;
-      var it = { i: i, d: d, r: 0.62 + 0.38 * Math.sqrt(seeded(h + 11)),   // 中間留給小精靈，花不會被牠擋住
+      var it = { i: i, d: d, r: 0.42 + 0.43 * seeded(h + 11),   // 0.42～0.85 倍半徑，不會貼著玻璃；擋在小精靈後面的花另外推開
         a: seeded(h + 7) * Math.PI * 2,
         jx: (seeded(h + 90) - 0.5) * hF * 0.5, jy: (seeded(h + 91) - 0.5) * hF * 0.3 };
       var isNew = !!(fresh && fresh[d.id]);
@@ -292,7 +292,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=59"; PET_IMG.sleep.src = "pet-sleep.webp?v=59";
+  PET_IMG.idle.src = "pet-idle.webp?v=60"; PET_IMG.sleep.src = "pet-sleep.webp?v=60";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
