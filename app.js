@@ -267,7 +267,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=52"; PET_IMG.sleep.src = "pet-sleep.webp?v=52";
+  PET_IMG.idle.src = "pet-idle.webp?v=53"; PET_IMG.sleep.src = "pet-sleep.webp?v=53";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -505,6 +505,7 @@
   }
   var COAX = ["對不起，是我不好", "抱抱你", "我請你吃好吃的", "我錯了，下次不會了", "不要生氣了好不好"];
   function openAnger(a) {
+    if (visitGuard()) return;
     var mine = a.from_id === me.id, list = coaxOf(a), lv = ANGER[a.level] || ANGER[2];
     var kids = [el("h2", { text: lv.e + " " + (mine ? "你在" + lv.t : nick(partner) + "在" + lv.t) }),
       el("p", { class: "legend", text: (mine ? "從 " : nick(partner) + "從 ") + shortDate(dateKey(new Date(a.ts))) + " " + pad(new Date(a.ts).getHours()) + ":" + pad(new Date(a.ts).getMinutes()) + " 開始" }),
@@ -634,6 +635,7 @@
     } catch (e) { toast("開啟失敗：" + (e.message || e)); }
   }
   function openEntry(e, nth) {
+    if (visitGuard()) return;
     var by = byId(e.created_by), owner = byId(e.owner), black = e.kind === "black";
     var d = parseDay(e.day), wk = "日一二三四五六"[d.getDay()];
     var how = black ? nick(by) + "給的小黑花"
@@ -825,6 +827,7 @@
         el("div", { class: "hubgrid" }, [
           hubBtn("⚙️", "設定", "暱稱、時區、花色、通知、配對", openSettings),
           hubBtn("🔢", "首頁要顯示的天數", "選要在首頁看到哪些天數", openUs),
+          hubBtn("👫", "好友", "加好友、去好友家串門子", openFriends),
           hubBtn("🧭", "使用說明", "重新看一次所有功能怎麼用", function () { showIntro(0); }),
           needTiltPermission() && !lsGet("cg-tilt") ? hubBtn("✦", "開啟景深", "傾斜手機時，瓶子和螢火蟲會有前後層次", function () { closeSheet(); askTilt(); }) : null
         ])];
@@ -868,6 +871,112 @@
     if (!parts.length) return el("button", { class: "daysline", onclick: openUs, text: "＋ 設定紀念日" });
     return el("button", { class: "daysline", onclick: openUs, text: parts.join("・") });
   }
+  // ---------- 好友與串門子 ----------
+  // 兩對情侶互加好友。好友只看得到瓶子、花的位置和顏色、小精靈、小燈、天氣，看不到花的話和任何留言（資料庫端就不回傳）
+  var visit = null;   // 正在串門子：{ data: cg_friend_view 的結果, idx: 看第幾個人的瓶子, names }
+  function visitGuard() { if (!visit) return false; toast("這是好友的花園，只能看看喔"); return true; }
+  function friendErr(e) {
+    var m = (e && e.message) || "";
+    if (/code not found/.test(m)) return "找不到這組好友碼";
+    if (/own code/.test(m)) return "這是你們自己的好友碼";
+    if (/already/.test(m)) return "你們已經是好友，或邀請還在等回覆";
+    if (/not friends/.test(m)) return "還不是好友";
+    return errText(e);
+  }
+  async function openFriends() {
+    openPanel([el("h2", { text: "好友" }), el("p", { class: "legend", text: "載入中…" })]);
+    var r = await Promise.all([sb.rpc("cg_friend_code"), sb.rpc("cg_friend_list")]);
+    if (r[0].error || r[1].error) { openPanel([el("h2", { text: "好友" }), el("p", { class: "legend", text: "好友功能還沒開通，請稍後再試。" }), el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })])]); return; }
+    var code = r[0].data, list = r[1].data || [];
+    var names = function (f) { return (f.names || []).join(" & ") || "一對情侶"; };
+    var kids = [el("h2", { text: "好友" }),
+      el("p", { class: "legend", text: "加好友後可以去對方家串門子，看他們的瓶子。好友看不到你們花上寫的話。" }),
+      el("div", { class: "fcode" }, [el("span", { text: "我們的好友碼" }), el("b", { text: code }),
+        el("button", { class: "btn ghost", text: "分享", onclick: function () { shareFriendCode(code); } })])];
+    var input = el("input", { type: "text", id: "fr-code", placeholder: "輸入對方的好友碼", maxlength: "6", autocapitalize: "characters" });
+    kids.push(el("div", { class: "frow" }, [input, el("button", { class: "btn primary", text: "加好友", onclick: async function () {
+      var c = input.value.trim(); if (c.length < 6) { toast("好友碼是 6 碼"); return; }
+      var x = await sb.rpc("cg_friend_request", { code: c });
+      if (x.error) { toast(friendErr(x.error)); return; }
+      toast("已送出邀請，等對方同意"); haptic(); openFriends();
+    } })]));
+    var inc = list.filter(function (f) { return f.status === "pending" && f.incoming; });
+    var out = list.filter(function (f) { return f.status === "pending" && !f.incoming; });
+    var ok = list.filter(function (f) { return f.status === "accepted"; });
+    if (inc.length) {
+      kids.push(el("h3", { text: "想跟你們當好友" }));
+      inc.forEach(function (f) {
+        kids.push(el("div", { class: "fitem" }, [el("div", { class: "fi-t" }, [el("b", { text: names(f) }), el("span", { text: "邀請你們當好友" })]),
+          el("button", { class: "btn ghost", text: "不要", onclick: async function () { await sb.from("cg_friends").delete().eq("id", f.id); openFriends(); } }),
+          el("button", { class: "btn primary", text: "同意", onclick: async function () {
+            var x = await sb.from("cg_friends").update({ status: "accepted" }).eq("id", f.id);
+            if (x.error) { toast(friendErr(x.error)); return; }
+            toast("成為好友了 👫"); haptic(); openFriends();
+          } })]));
+      });
+    }
+    kids.push(el("h3", { text: "好友（" + ok.length + "）" }));
+    if (!ok.length) kids.push(el("p", { class: "legend", text: "還沒有好友。把好友碼傳給其他情侶，或輸入他們的好友碼。" }));
+    ok.forEach(function (f) {
+      var days = f.started_on ? daysBetween(parseDay(f.started_on), new Date()) + 1 : null;
+      kids.push(el("button", { class: "fitem go", onclick: function () { startVisit(f); } }, [
+        el("div", { class: "fi-t" }, [el("b", { text: names(f) }), el("span", { text: (days ? "在一起 " + days + " 天・" : "") + "共 " + f.flowers + " 朵花" })]),
+        el("span", { class: "fi-go", text: "去串門子 →" })]));
+    });
+    if (out.length) {
+      kids.push(el("h3", { text: "等對方回覆" }));
+      out.forEach(function (f) {
+        kids.push(el("div", { class: "fitem" }, [el("div", { class: "fi-t" }, [el("b", { text: names(f) }), el("span", { text: "邀請已送出" })]),
+          el("button", { class: "btn ghost", text: "取消", onclick: async function () { await sb.from("cg_friends").delete().eq("id", f.id); openFriends(); } })]));
+      });
+    }
+    kids.push(el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })]));
+    openPanel(kids);
+  }
+  function shareFriendCode(code) {
+    var text = "來 Couple Garden 跟我們當好友吧！打開 " + location.origin + location.pathname + " ，到「我的 → 好友」輸入好友碼：" + code;
+    if (navigator.share) { navigator.share({ text: text }).catch(function () {}); return; }
+    try { navigator.clipboard.writeText(text).then(function () { toast("已複製好友碼"); }); } catch (e) { toast("好友碼：" + code); }
+  }
+  async function startVisit(f) {
+    var r = await sb.rpc("cg_friend_view", { target: f.couple });
+    if (r.error) { toast(friendErr(r.error)); return; }
+    var d = r.data;
+    d.entries.forEach(function (e) { e.note = ""; e.reply = ""; });
+    visit = { data: d, idx: 0, fid: f.id, names: (f.names || []).join(" & ") };
+    closeSheet(); route();
+  }
+  function endVisit() { visit = null; orbSig = ""; route(); }
+  // 借用自己家的畫法：暫時把「我、對方、花、燈、天氣」換成好友的資料來畫瓶子，畫完立刻換回來
+  function asVisit(fn) {
+    var keep = [me, partner, couple, entries, claims, angers, coaxes, dates];
+    var m = visit.data.members, k = visit.idx;
+    me = Object.assign({}, m[k]); partner = m[1 - k] ? Object.assign({}, m[1 - k]) : null;
+    couple = Object.assign({}, visit.data.couple); entries = visit.data.entries; claims = visit.data.claims; angers = visit.data.angers; coaxes = []; dates = [];
+    try { return fn(); } finally { me = keep[0]; partner = keep[1]; couple = keep[2]; entries = keep[3]; claims = keep[4]; angers = keep[5]; coaxes = keep[6]; dates = keep[7]; }
+  }
+  function renderVisit() {
+    var ui = document.getElementById("ui"), m = visit.data.members;
+    ui.textContent = "";
+    var info = asVisit(function () {
+      var g = garden(me);
+      renderOrb(g.inOrb, null, me);
+      return { count: g.count, blacks: g.blacks.length, days: dayStats(new Date()) };
+    });
+    var tabs = el("div", { class: "gtabs", role: "tablist" }, m.map(function (p, k) {
+      return el("button", { class: "gtab" + (visit.idx === k ? " on" : ""), role: "tab", onclick: function () { if (visit.idx !== k) { visit.idx = k; renderVisit(); } } }, [p.nickname || "?"]);
+    }));
+    ui.appendChild(el("div", { class: "top" }, [el("div", { class: "brand" }, ["好友的花園"]), tabs]));
+    ui.appendChild(el("div", { class: "hero" }, [
+      el("div", { class: "headline" }, [el("b", { text: String(info.count) }), el("span", { text: " 朵" }), info.blacks ? el("span", { class: "blk", text: "・小黑花 " + info.blacks }) : null]),
+      el("p", { class: "daysline", text: visit.names + (info.days.length ? "・" + info.days.slice(0, 1).map(dayPhrase).join("") : "") }),
+      el("p", { class: "visitnote", text: "👀 串門子中：看得到瓶子，看不到花上寫的話" })
+    ]));
+    ui.appendChild(el("div", { class: "dock liquid-glass tabs4 visitdock" }, [
+      el("button", { class: "btn primary", text: "← 回到我們的花園", onclick: endVisit })
+    ]));
+    layoutVideo();
+  }
   // ---------- 待兌現的券 ----------
   // 兌換成立後，獎勵還沒真的發生：主畫面留一張券提醒兩個人，兌換的人收到後按「收到了」，瓶子裡多一盞小燈
   function tickets() { return claims.filter(function (c) { return c.status === "confirmed"; }); }
@@ -908,6 +1017,7 @@
     ]);
   }
   function openLantern(c) {
+    if (visitGuard()) return;
     var t = new Date(c.done_ts || c.ts);
     openPanel([
       el("h2", { text: "🏮 " + c.title }),
@@ -1395,6 +1505,7 @@
     if (!me) { renderAuth("in"); return; }
     if (!me.couple_id || !couple) { renderPair(); return; }
     if (!partner && view === "partner") view = "me";
+    if (visit) { renderVisit(); return; }
     renderGarden();
   }
   function renderGarden() {
@@ -1521,6 +1632,7 @@
     setTimeout(function () { requestAnimationFrame(step); }, delay || 0);
   }
   function switchView(v) {
+    if (visit) { var k = v === "partner" ? 1 : 0; if (k !== visit.idx && visit.data.members[k]) { visit.idx = k; renderVisit(); } return; }
     if (v === view || (v === "partner" && !partner)) return;
     view = v;
     var layer = document.getElementById("orb-layer");
