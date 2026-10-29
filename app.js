@@ -267,7 +267,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=54"; PET_IMG.sleep.src = "pet-sleep.webp?v=54";
+  PET_IMG.idle.src = "pet-idle.webp?v=55"; PET_IMG.sleep.src = "pet-sleep.webp?v=55";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -830,6 +830,7 @@
         el("div", { class: "hubgrid" }, [
           hubBtn("⚙️", "設定", "暱稱、時區、花色、通知、配對", openSettings),
           hubBtn("🔢", "首頁要顯示的天數", "選要在首頁看到哪些天數", openUs),
+          hubBtn("🏅", "徽章", "已解鎖 " + earnedBadges().length + "／" + BADGES.length + "，看看還能挑戰什麼", function () { openBadges(); }),
           hubBtn("👫", "好友", "加好友、去好友家串門子", openFriends),
           hubBtn("🧭", "使用說明", "重新看一次所有功能怎麼用", function () { showIntro(0); }),
           needTiltPermission() && !lsGet("cg-tilt") ? hubBtn("✦", "開啟景深", "傾斜手機時，瓶子和螢火蟲會有前後層次", function () { closeSheet(); askTilt(); }) : null
@@ -970,7 +971,8 @@
     var tabs = el("div", { class: "gtabs", role: "tablist" }, m.map(function (p, k) {
       return el("button", { class: "gtab" + (visit.idx === k ? " on" : ""), role: "tab", onclick: function () { if (visit.idx !== k) { visit.idx = k; renderVisit(); } } }, [p.nickname || "?"]);
     }));
-    ui.appendChild(el("div", { class: "top" }, [el("div", { class: "brand" }, ["好友的花園"]), tabs]));
+    var fb = (visit.data.couple && visit.data.couple.badges) || [];
+    ui.appendChild(el("div", { class: "top" }, [el("div", { class: "brand" }, ["好友的花園", el("button", { class: "badgepill", onclick: function () { openBadges(fb, visit.names + " 的徽章"); } }, ["🏅 " + fb.length])]), tabs]));
     ui.appendChild(el("div", { class: "hero" }, [
       el("div", { class: "headline" }, [el("b", { text: String(info.count) }), el("span", { text: " 朵" }), info.blacks ? el("span", { class: "blk", text: "・小黑花 " + info.blacks }) : null]),
       el("p", { class: "daysline", text: visit.names + (info.days.length ? "・" + info.days.slice(0, 1).map(dayPhrase).join("") : "") }),
@@ -983,6 +985,107 @@
       el("button", { class: "btn ghost", text: "📝 留言", onclick: openGuestWrite })
     ]));
     layoutVideo();
+  }
+  // ---------- 成就徽章 ----------
+  // 兩人共有。全部用現有資料算，舊用戶一上線就補發；算好的結果存一份到 cg_couples.badges，給好友串門子時看
+  function bestStreak() {   // 歷史上兩人「同一天都報平安」的最長連續天數
+    if (!partner) return 0;
+    var a = {}, b = {};
+    checkins.forEach(function (c) { if (c.user_id === me.id) a[c.day] = 1; else if (c.user_id === partner.id) b[c.day] = 1; });
+    var both = Object.keys(a).filter(function (k) { return b[k]; }).sort(), best = 0, run = 0, prev = null;
+    both.forEach(function (k) {
+      if (prev) { var d = parseDay(prev); d.setDate(d.getDate() + 1); run = dateKey(d) === k ? run + 1 : 1; } else run = 1;
+      best = Math.max(best, run); prev = k;
+    });
+    return best;
+  }
+  function badgeStats() {
+    var flowers = entries.filter(function (e) { return e.kind !== "black" && e.status === "confirmed"; });
+    var gave = function (p) { return p && flowers.some(function (e) { return e.created_by === p.id && e.owner !== p.id; }); };
+    var calm = angers.filter(function (a) { return a.status === "calm"; });
+    return {
+      flowers: flowers.length, mutual: gave(me) && gave(partner) ? 1 : 0,
+      checkins: checkins.length, streak: bestStreak(),
+      done: claims.filter(function (c) { return c.status === "done"; }).length,
+      calm: calm.length, coaxed: calm.filter(function (a) { return coaxOf(a).length; }).length, coaxes: coaxes.length,
+      pings: pings.length, blacks: entries.filter(function (e) { return e.kind === "black"; }).length,
+      friends: +(inbox.friends || 0), blessed: +(inbox.blessed || 0),
+      days: couple && couple.started_on ? daysBetween(parseDay(couple.started_on), new Date()) + 1 : 0
+    };
+  }
+  var BADGES = [
+    { id: "f1", cat: "🌱 種花", icon: "🌱", name: "第一朵花", desc: "瓶子裡有第一朵花", k: "flowers", goal: 1 },
+    { id: "f10", cat: "🌱 種花", icon: "🌷", name: "小花園", desc: "累積 10 朵花", k: "flowers", goal: 10 },
+    { id: "f50", cat: "🌱 種花", icon: "💐", name: "花團錦簇", desc: "累積 50 朵花", k: "flowers", goal: 50 },
+    { id: "f100", cat: "🌱 種花", icon: "🌺", name: "百花園", desc: "累積 100 朵花", k: "flowers", goal: 100 },
+    { id: "mutual", cat: "🌱 種花", icon: "💞", name: "互相寵愛", desc: "兩個人都送過對方花", k: "mutual", goal: 1 },
+    { id: "c1", cat: "💌 報平安", icon: "💌", name: "第一次報平安", desc: "報過一次平安", k: "checkins", goal: 1 },
+    { id: "s7", cat: "💌 報平安", icon: "🔥", name: "一週不間斷", desc: "兩人連續 7 天都報平安", k: "streak", goal: 7 },
+    { id: "s30", cat: "💌 報平安", icon: "🌙", name: "一個月的默契", desc: "兩人連續 30 天都報平安", k: "streak", goal: 30 },
+    { id: "s100", cat: "💌 報平安", icon: "⭐", name: "百日守候", desc: "兩人連續 100 天都報平安", k: "streak", goal: 100 },
+    { id: "d1", cat: "🎁 獎勵", icon: "🏮", name: "說到做到", desc: "兌現第一個獎勵", k: "done", goal: 1 },
+    { id: "d10", cat: "🎁 獎勵", icon: "🎐", name: "守信用", desc: "兌現 10 個獎勵", k: "done", goal: 10 },
+    { id: "a1", cat: "☁️ 生氣與和好", icon: "🌈", name: "雨過天晴", desc: "第一次生氣後消氣", k: "calm", goal: 1 },
+    { id: "a5", cat: "☁️ 生氣與和好", icon: "🤝", name: "和好專家", desc: "被哄好 5 次", k: "coaxed", goal: 5 },
+    { id: "x10", cat: "☁️ 生氣與和好", icon: "🫶", name: "哄人高手", desc: "哄過對方 10 次", k: "coaxes", goal: 10 },
+    { id: "p10", cat: "💗 互動", icon: "💗", name: "想你想你", desc: "按過 10 次想你", k: "pings", goal: 10 },
+    { id: "b1", cat: "💗 互動", icon: "🖤", name: "小黑花也是愛", desc: "收過第一朵小黑花", k: "blacks", goal: 1 },
+    { id: "fr1", cat: "👫 好友", icon: "👫", name: "交到朋友", desc: "第一對好友", k: "friends", goal: 1 },
+    { id: "fr5", cat: "👫 好友", icon: "🎉", name: "社交達人", desc: "5 對好友", k: "friends", goal: 5 },
+    { id: "bl10", cat: "👫 好友", icon: "🤍", name: "散播祝福", desc: "送出 10 朵祝福花", k: "blessed", goal: 10 },
+    { id: "y100", cat: "📅 紀念日", icon: "💯", name: "100 天", desc: "在一起 100 天", k: "days", goal: 100 },
+    { id: "y365", cat: "📅 紀念日", icon: "🎂", name: "一週年", desc: "在一起 365 天", k: "days", goal: 365 }
+  ];
+  function earnedBadges(st) { st = st || badgeStats(); return BADGES.filter(function (b) { return st[b.k] >= b.goal; }).map(function (b) { return b.id; }); }
+  // 每次資料更新後檢查：有新徽章就跳慶祝卡，並同步存到 cg_couples.badges
+  function checkBadges() {
+    if (!couple || !partner || !loaded) return;
+    var got = earnedBadges(), key = "cg-badges-" + me.id, seenRaw = lsGet(key), seen = seenRaw ? JSON.parse(seenRaw) : null;
+    var stored = Array.isArray(couple.badges) ? couple.badges : [];
+    if (got.join(",") !== stored.slice().sort().join(",") && got.length >= stored.length) {
+      couple.badges = got;
+      sb.from("cg_couples").update({ badges: got }).eq("id", couple.id).then(function () {});
+    }
+    if (seen === null) {   // 第一次：補發，用一張卡講總數就好
+      lsSet(key, JSON.stringify(got));
+      if (got.length) setTimeout(function () { queueCard(function () { showBadgeCard(null, got.length); }); }, 2600);
+      return;
+    }
+    var fresh = got.filter(function (id) { return seen.indexOf(id) < 0; });
+    if (!fresh.length) return;
+    lsSet(key, JSON.stringify(got));
+    fresh.forEach(function (id, i) {
+      var b = BADGES.filter(function (x) { return x.id === id; })[0];
+      if (b) setTimeout(function () { glowOrb(false); queueCard(function () { showBadgeCard(b); }); }, 2000 + i * 300);
+    });
+  }
+  function showBadgeCard(b, total) {
+    openPanel([
+      el("div", { class: "introicon badgepop", text: b ? b.icon : "🏅" }),
+      el("h2", { text: b ? "解鎖徽章：" + b.name : "你們已經有 " + total + " 個徽章" }),
+      el("p", { class: "legend", style: "font-size:15px;line-height:1.7;color:var(--ink-soft)", text: b ? b.desc + "。這是你們兩個人一起拿到的。" : "這些是你們一路以來一起達成的。到「我的 → 徽章」看看還有哪些可以挑戰。" }),
+      el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "看徽章牆", onclick: function () { openBadges(); } }), el("button", { class: "btn primary", text: "太棒了", onclick: closeSheet })])
+    ]);
+  }
+  // 徽章牆：自己的會顯示進度；好友的（others 傳入已解鎖的 id）只顯示亮或灰
+  function openBadges(others, title) {
+    var st = others ? null : badgeStats(), got = others || earnedBadges(st), kids = [];
+    kids.push(el("h2", { text: (title || "我們的徽章") + "（" + got.length + "／" + BADGES.length + "）" }));
+    var cats = [];
+    BADGES.forEach(function (b) { if (cats.indexOf(b.cat) < 0) cats.push(b.cat); });
+    cats.forEach(function (c) {
+      kids.push(el("h3", { text: c }));
+      kids.push(el("div", { class: "bgrid" }, BADGES.filter(function (b) { return b.cat === c; }).map(function (b) {
+        var on = got.indexOf(b.id) >= 0, cur = st ? Math.min(st[b.k], b.goal) : null;
+        return el("div", { class: "bcell" + (on ? " on" : "") }, [
+          el("span", { class: "bi", text: b.icon }), el("b", { text: b.name }), el("span", { class: "bd", text: b.desc }),
+          !on && st && b.goal > 1 ? el("span", { class: "bp" }, [el("i", { style: "width:" + Math.round(cur / b.goal * 100) + "%" })]) : null,
+          !on && st && b.goal > 1 ? el("span", { class: "bn", text: cur + "／" + b.goal }) : null
+        ]);
+      })));
+    });
+    kids.push(el("div", { class: "row" }, [el("button", { class: "btn primary", text: "關閉", onclick: closeSheet })]));
+    openPanel(kids);
   }
   // ---------- 祝福花與留言簿 ----------
   // 好友每天可以送一朵白色祝福花，放在瓶子右下角的小花盆；也可以在好友家留一句話。都不算進兩人的朵數
@@ -1625,6 +1728,7 @@
       if (stored === null) lsSet(msKey, ms);
       else if (ms >= 10 && ms > +stored) { lsSet(msKey, ms); setTimeout(function () { if (view === "me") glowOrb(false); queueCard(function () { showMilestone(ms); }); }, 2200); }
     }
+    if (loaded) checkBadges();
     if (!mineView && partner) {
       var ps = lsGet("cg-pseen-" + me.id);
       g.inOrb.forEach(function (e) { if (ps !== null && e.ts > +ps && !animated[e.id]) fresh[e.id] = 1; });
@@ -1652,7 +1756,8 @@
     }
     // 上半部只留三層：頂列（品牌＋切換瓶子）→ 朵數與天數 → 今天小卡
     ui.appendChild(el("div", { class: "top" }, [
-      el("div", { class: "brand" }, ["Couple Garden", connText ? el("span", { class: "conndot", title: connText, "aria-label": connText }) : null]),
+      el("div", { class: "brand" }, ["Couple Garden", connText ? el("span", { class: "conndot", title: connText, "aria-label": connText }) : null,
+        partner ? el("button", { class: "badgepill", "aria-label": "徽章", onclick: function () { openBadges(); } }, ["🏅 " + earnedBadges().length]) : null]),
       tabs
     ]));
     ui.appendChild(el("div", { class: "hero" }, [
