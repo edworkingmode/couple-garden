@@ -217,12 +217,21 @@
     var S0 = o.ry * 0.8 * Math.max(0.6, Math.min(1, Math.sqrt(14 / Math.max(n, 14))));
     var M = 40, items = [], bloomIdx = 0, seedOff = owner && partner && owner.id === partner.id ? 500 : 0;
     var color = gardenColor(owner);
+    // 花位：照向日葵籽的排法（黃金角）排出固定的格子，前後排自然錯開、彼此保持間距
+    var SLOTS = Math.max(28, n + 8), used = {}, pb0 = petBox(o, bx, by);
+    for (var k0 = 0; k0 < SLOTS; k0++) {   // 小精靈前後的格子都不用：花不會擋住牠，也不會全被推到兩側擠成一團
+      var r0 = 0.42 + 0.43 * Math.sqrt((k0 + 0.5) / SLOTS);
+      if (Math.abs(bx + Math.cos(k0 * 2.39996) * hw * r0 - pb0.x) < pb0.w * 0.45) used[k0] = 1;
+    }
+    if (SLOTS - Object.keys(used).length < n) used = {};   // 空格不夠就全部開放，不會卡住
     list.forEach(function (d, i) {
-      // 位置、高矮都用這朵花自己的編號算，加花或包花束時，其他花不會跟著換位置
-      var h = idSeed(d.id), wrap = 0;
-      var it = { i: i, d: d, r: 0.42 + 0.43 * seeded(h + 11),   // 0.42～0.85 倍半徑，不會貼著玻璃；擋在小精靈後面的花另外推開
-        a: seeded(h + 7) * Math.PI * 2,
-        jx: (seeded(h + 90) - 0.5) * hF * 0.5, jy: (seeded(h + 91) - 0.5) * hF * 0.3 };
+      // 每朵花用自己的編號挑格子，被佔了就往下一格；舊的花先挑，加花或包花束時其他花不會跟著換位置
+      var h = idSeed(d.id), k = Math.floor(seeded(h + 11) * SLOTS);
+      while (used[k]) k = (k + 1) % SLOTS;
+      used[k] = 1;
+      var it = { i: i, d: d, r: 0.42 + 0.43 * Math.sqrt((k + 0.5) / SLOTS),   // 0.42～0.85 倍半徑，不會貼著玻璃；擋在小精靈後面的花另外推開
+        a: k * 2.39996,
+        jx: (seeded(h + 90) - 0.5) * hF * 0.15, jy: (seeded(h + 91) - 0.5) * hF * 0.1 };
       var isNew = !!(fresh && fresh[d.id]);
       var f = photoFlower(h + seedOff, isNew, S0 * (STYLE_SIZE[d.style] || 1), flowerClass(d, color));
       if (isNew) { f.style.animationDelay = (bloomIdx++ * 0.25) + "s"; animated[d.id] = 1; setTimeout(pokePet, 1400); }
@@ -244,8 +253,9 @@
         var pb = petBox(o, bx, by), gap = pb.w * 0.5 + it.f._W * 0.3;
         if (y < pb.foot && Math.abs(x - pb.x) < gap) x = pb.x + (x >= pb.x ? gap : -gap);
         var dp = Math.max(0, Math.min(1, (y - (by - hh)) / (2 * hh)));
-        it.f.style.left = (x - it.f._W / 2) + "px"; it.f.style.top = (y - it.f._H) + "px";
-        var sc = 0.68 + 0.3 * dp;                                   // 近大遠小
+        var sc = 0.8 + 0.2 * dp;                                    // 近大遠小（後排不縮太多，才看得到）
+        var lift = it.f._H * sc * 0.3 * (1 - dp);                   // 後排莖比較高，花頭從前排上面冒出來
+        it.f.style.left = (x - it.f._W / 2) + "px"; it.f.style.top = (y - lift - it.f._H) + "px";
         it.f.style.scale = sc.toFixed(3);
         it.f.style.opacity = (0.9 + 0.1 * dp).toFixed(2);
         it.f._shade.style.opacity = (0.62 * (1 - dp) + 0.05).toFixed(2);   // 後排比較暗
@@ -292,7 +302,7 @@
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=61"; PET_IMG.sleep.src = "pet-sleep.webp?v=61";
+  PET_IMG.idle.src = "pet-idle.webp?v=62"; PET_IMG.sleep.src = "pet-sleep.webp?v=62";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
