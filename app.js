@@ -22,7 +22,7 @@
   var ASSET = (window.innerWidth <= 700 && window.innerHeight > window.innerWidth) ? ASSETS.mobile : ASSETS.full;
   var VID = { w: ASSET.w, h: ASSET.h }, ORB = ASSET.orb;
 
-  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [], rewards = [], claims = [], checkins = [];
+  var sb = null, me = null, partner = null, couple = null, tasks = [], entries = [], dates = [], pings = [], rewards = [], claims = [], checkins = [], angers = [], coaxes = [];
   var view = "me", dockPage = 0, busy = false, loaded = false, poller = null, connText = "";
   var sheetOnClose = null, cardQueue = [], seen = {}, shown = {}, animated = {}, cardShown = {}, entered = false;
 
@@ -174,7 +174,8 @@
     var o = orbGeom(), n = list.length;
     // 每 8 秒會重新抓資料；花和尺寸都沒變就不重畫，不然小精靈和花會一閃一閃
     var lit = owner ? claims.filter(function (c) { return c.owner === owner.id && c.status === "done"; }).length : 0;
-    var sig = (owner ? owner.id + gardenColor(owner) : "") + "|" + lit + "|" + list.map(function (d) { return d.id + d.status; }).join(",") + "|" + [o.cx, o.cy, o.rx, o.ry].map(Math.round).join(",");
+    var rain = rainOver(owner); petSulk = !!rain;
+    var sig = (owner ? owner.id + gardenColor(owner) : "") + "|" + lit + "|" + (rain ? rain.id + rain.level : "") + (rainbowNext ? "r" : "") + (calmSig() ? "c" : "") + "|" + list.map(function (d) { return d.id + d.status; }).join(",") + "|" + [o.cx, o.cy, o.rx, o.ry].map(Math.round).join(",");
     var hasNew = fresh && Object.keys(fresh).length;
     if (sig === orbSig && !hasNew && layer.childNodes.length) return;
     orbSig = sig;
@@ -186,6 +187,10 @@
     dim.style.left = (o.cx - o.rx * 0.97) + "px"; dim.style.top = (o.cy - o.ry * 0.97) + "px"; dim.style.width = (o.rx * 1.94) + "px"; dim.style.height = (o.ry * 1.94) + "px";
     var bx = o.cx, by = o.cy + 0.39 * o.ry, hw = 0.8 * o.rx, hh = 0.26 * o.ry;
     addLanterns(layer, o, owner, bx, by, hw, hh);
+    if (rain) addRain(layer, o, rain);
+    var calmed = owner && owner.id === me.id && partner ? angers.filter(function (a) { return a.from_id === partner.id && a.status === "calm" && a.calm_ts && Date.now() - a.calm_ts < 864e5; })[0] : null;
+    if (calmed && lsGet("cg-calm-" + calmed.id) === null) { lsSet("cg-calm-" + calmed.id, 1); rainbowNext = true; }   // 對方消氣後，我第一次打開也看得到彩虹
+    if (rainbowNext) { rainbowNext = false; addRainbow(layer, o); }
     if (!n) {
       addPet(layer, bx, by, o);
       layer.appendChild(el("div", { class: "orb-hint", style: "left:" + o.cx + "px;top:" + (o.cy - 0.12 * o.ry) + "px", text: "第一朵花，等著被種下" }));
@@ -256,12 +261,13 @@
     layer.appendChild(shadow);
     p.addEventListener("click", function () { if (!spin.moved) pokePet(); });
     layer.appendChild(p);
+    if (petSulk) p.classList.add("sulk");   // 瓶子在下雨時，小精靈縮成一團
     pet.el = p; drawPet();
     if (!pet.timer) pet.timer = setInterval(tickPet, 140);
   }
   // 兩組動畫圖只載入一次；每一格用畫布畫，不用移動背景位置（iPhone 換背景位置會閃一下空白）
   var PET_IMG = { idle: new Image(), sleep: new Image() };
-  PET_IMG.idle.src = "pet-idle.webp?v=51"; PET_IMG.sleep.src = "pet-sleep.webp?v=51";
+  PET_IMG.idle.src = "pet-idle.webp?v=52"; PET_IMG.sleep.src = "pet-sleep.webp?v=52";
   PET_IMG.idle.onload = PET_IMG.sleep.onload = function () { drawPet(); };
   function drawPet() {
     if (!pet.el || !pet.el.getContext) return;
@@ -363,8 +369,12 @@
       sb.from("cg_pings").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(20),
       sb.from("cg_rewards").select("*").eq("couple_id", me.couple_id).eq("active", true).order("cost"),
       sb.from("cg_reward_claims").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(200),
-      sb.from("cg_checkins").select("*").eq("couple_id", me.couple_id).order("day", { ascending: false }).limit(800)
+      sb.from("cg_checkins").select("*").eq("couple_id", me.couple_id).order("day", { ascending: false }).limit(800),
+      sb.from("cg_angers").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(200),
+      sb.from("cg_coaxes").select("*").eq("couple_id", me.couple_id).order("ts", { ascending: false }).limit(500)
     ]);
+    angers = res[9].error ? [] : (res[9].data || []);   // 還沒建表時就當作沒有
+    coaxes = res[10].error ? [] : (res[10].data || []);
     checkins = res[8].error ? [] : (res[8].data || []);
     pings = res[5].error ? [] : (res[5].data || []);   // 還沒建 cg_pings 表時就當作沒有
     rewards = res[6].error ? [] : (res[6].data || []);
@@ -465,6 +475,67 @@
     lsSet("cg-miss-sent", Date.now());
     act(function () { return sb.from("cg_pings").insert({ couple_id: couple.id, from_id: me.id, ts: Date.now() }); }, "已經把想念傳給" + nick(partner));
   }
+  // ---------- 生氣 ----------
+  // 生氣的人按下去，被生氣的那個人瓶子上方會一直下雨；對方可以哄，生氣的人按「消氣了」雨才停、出彩虹
+  var ANGER = [null, { t: "有點不開心", e: "😕" }, { t: "生氣", e: "😤" }, { t: "超生氣", e: "😡" }];
+  function angerOn(fromId) { return angers.filter(function (a) { return a.from_id === fromId && a.status === "angry"; })[0] || null; }
+  function rainOver(owner) { var other = owner && partner && owner.id === me.id ? partner : me; return owner ? angerOn(other.id) : null; }   // 誰生氣，雨就下在另一個人的瓶子
+  function coaxOf(a) { return coaxes.filter(function (c) { return c.anger_id === a.id; }).sort(function (x, y) { return x.ts - y.ts; }); }
+  function startAnger() {
+    if (!partner) { toast("等對方加入後才能用"); return; }
+    var mine = angerOn(me.id);
+    if (mine) { openAnger(mine); return; }
+    var lv = 2, reason = el("input", { type: "text", id: "ag-reason", placeholder: "為什麼生氣？（可不填）", maxlength: "60" });
+    var pick = el("div", { class: "aglv" }, [1, 2, 3].map(function (n) {
+      return el("button", { class: "aglvbtn" + (n === lv ? " on" : ""), onclick: function () { lv = n; [].forEach.call(pick.children, function (b, k) { b.classList.toggle("on", k + 1 === n); }); } }, [el("span", { class: "e", text: ANGER[n].e }), el("span", { text: ANGER[n].t })]);
+    }));
+    openPanel([
+      el("h2", { text: "跟" + nick(partner) + "說你生氣了" }),
+      el("p", { class: "legend", text: nick(partner) + "的瓶子會開始下雨，直到你按「消氣了」。越生氣，雨越大。" }),
+      pick,
+      el("label", { class: "field" }, [el("span", { text: "原因" }), reason]),
+      el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "算了", onclick: closeSheet }),
+        el("button", { class: "btn primary", text: "送出", onclick: function () {
+          closeSheet();
+          act(function () { return sb.from("cg_angers").insert({ couple_id: couple.id, from_id: me.id, level: lv, reason: reason.value.trim(), ts: Date.now() }); }, "☁️ " + nick(partner) + "那邊開始下雨了");
+        } })
+      ])
+    ]);
+  }
+  var COAX = ["對不起，是我不好", "抱抱你", "我請你吃好吃的", "我錯了，下次不會了", "不要生氣了好不好"];
+  function openAnger(a) {
+    var mine = a.from_id === me.id, list = coaxOf(a), lv = ANGER[a.level] || ANGER[2];
+    var kids = [el("h2", { text: lv.e + " " + (mine ? "你在" + lv.t : nick(partner) + "在" + lv.t) }),
+      el("p", { class: "legend", text: (mine ? "從 " : nick(partner) + "從 ") + shortDate(dateKey(new Date(a.ts))) + " " + pad(new Date(a.ts).getHours()) + ":" + pad(new Date(a.ts).getMinutes()) + " 開始" }),
+      a.reason ? el("p", { class: "note", text: "「" + a.reason + "」" }) : null];
+    if (list.length) kids.push(el("ul", { class: "coaxlist" }, list.map(function (c) { return el("li", {}, [el("b", { text: c.from_id === me.id ? "我" : nick(partner) }), el("span", { text: c.text })]); })));
+    if (mine) {
+      kids.push(el("p", { class: "legend", text: list.length ? nick(partner) + "已經哄了 " + list.length + " 次。氣消了就按下面，雨會停、出彩虹。" : nick(partner) + "還沒來哄你。氣消了就按下面，雨會停。" }));
+      kids.push(el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "還在氣", onclick: closeSheet }),
+        el("button", { class: "btn primary", text: "🌈 消氣了", onclick: function () {
+          closeSheet(); rainbowNext = true;
+          act(function () { return sb.from("cg_angers").update({ status: "calm", calm_ts: Date.now() }).eq("id", a.id); }, "🌈 雨停了");
+        } })
+      ]));
+    } else {
+      var input = el("input", { type: "text", id: "coax-text", placeholder: "說點什麼哄" + nick(partner), maxlength: "60" });
+      kids.push(el("div", { class: "coaxchips" }, COAX.map(function (t) { return el("button", { class: "chip", text: t, onclick: function () { input.value = t; } }); })));
+      kids.push(input);
+      kids.push(el("div", { class: "row" }, [
+        el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet }),
+        el("button", { class: "btn primary", text: "🫶 哄你", onclick: function () {
+          var t = input.value.trim(); if (!t) { toast("選一句或寫一句吧"); return; }
+          closeSheet();
+          act(function () { return sb.from("cg_coaxes").insert({ couple_id: couple.id, anger_id: a.id, from_id: me.id, text: t, ts: Date.now() }); }, "已經哄了，等" + nick(partner) + "消氣");
+        } })
+      ]));
+    }
+    openPanel(kids);
+  }
+  var rainbowNext = false, petSulk = false;
+  function calmSig() { return partner && angers.some(function (a) { return a.from_id === partner.id && a.status === "calm" && a.calm_ts && lsGet("cg-calm-" + a.id) === null && Date.now() - a.calm_ts < 864e5; }); }
   // 對方按了「想你」：打開時瓶子亮一下
   function checkMiss() {
     if (!partner) return;
@@ -736,6 +807,7 @@
           hubBtn("✅", "待處理", pend.length ? pend.length + " 件等你確認" : "沒有要確認的", openPending, pend.length, "tile"),
           hubBtn("💗", "想你", "讓對方瓶子亮一下", function () { closeSheet(); sendMiss(); }, 0, "tile"),
           hubBtn("🎁", "獎勵", "用花換獎勵", openRewards, 0, "tile"),
+          hubBtn(angerOn(me.id) ? "🌧️" : "😤", angerOn(me.id) ? "你在生氣" : "生氣", angerOn(me.id) ? "看哄的話・消氣" : "讓對方瓶子下雨", startAnger, 0, "tile"),
           tickets().length ? hubBtn("🎟️", "待兌現的券", owed ? pn + "欠你 " + owed + " 張" : "你欠" + pn + "的", openTickets, 0, "tile") : null,
           hubBtn("🖤", "小黑花", "給" + pn + "，可申訴或贖回", startBlack, 0, "tile dim")
         ])];
@@ -767,7 +839,9 @@
   // 主畫面的「今天」小卡：一次只提醒最該做的一件事，沒事就顯示兩個人今天的報平安
   function todayCard(pend) {
     var owed = tickets().filter(function (c) { return c.owner === me.id; }).length, a = myCheckin();
-    var todo = [];
+    var todo = [], hisAnger = angerOn(partner.id), myAnger = angerOn(me.id);
+    if (hisAnger) todo.push({ t: "☁️ " + nick(partner) + "在" + (ANGER[hisAnger.level] || ANGER[2]).t + "，去哄哄", go: function () { openAnger(hisAnger); } });
+    if (myAnger) todo.push({ t: "🌧️ 你在生氣中" + (coaxOf(myAnger).length ? "・" + nick(partner) + "哄了 " + coaxOf(myAnger).length + " 次" : ""), go: function () { openAnger(myAnger); } });
     if (pend.length) todo.push({ t: "🔔 " + pend.length + " 件等你確認", go: openPending });
     if (!a) todo.push({ t: "💌 今天還沒報平安，點我", go: openCheckin });
     if (owed) todo.push({ t: "🎟️ " + nick(partner) + "欠你 " + owed + " 張券", go: openTickets });
@@ -842,6 +916,33 @@
       el("div", { class: "row" }, [el("button", { class: "btn ghost", text: "關閉", onclick: closeSheet })])
     ]);
   }
+  // 雨雲：浮在瓶口上方，雨滴落進瓶子。全部用漸層和動畫畫，不用濾鏡（iPhone 才畫得出來）
+  function addRain(layer, o, a) {
+    var lv = a.level || 2, w = o.rx * (1.0 + 0.2 * lv), h = o.ry * 0.5;
+    var cloud = el("div", { class: "raincloud lv" + lv, role: "button", "aria-label": "雨雲：點一下看生氣的原因" });
+    cloud.style.left = (o.cx - w / 2) + "px"; cloud.style.top = (o.cy - o.ry * 1.22) + "px";
+    cloud.style.width = w + "px"; cloud.style.height = h + "px";
+    cloud.addEventListener("click", function () { openAnger(a); });
+    layer.appendChild(cloud);
+    var n = [0, 14, 26, 44][lv];
+    for (var i = 0; i < n; i++) {
+      var d = el("div", { class: "raindrop", "aria-hidden": "true" });
+      d.style.left = (o.cx - w * 0.42 + seeded(i + 300) * w * 0.84) + "px";
+      d.style.top = (o.cy - o.ry * 0.95) + "px";
+      d.style.setProperty("--fall", Math.round(o.ry * (1.2 + seeded(i + 400) * 0.3)) + "px");
+      d.style.animationDuration = (0.9 - lv * 0.12 + seeded(i + 500) * 0.3).toFixed(2) + "s";
+      d.style.animationDelay = (-seeded(i + 600) * 1.2).toFixed(2) + "s";
+      layer.appendChild(d);
+    }
+  }
+  function addRainbow(layer, o) {
+    var r = el("div", { class: "rainbow", "aria-hidden": "true" });
+    var w = o.rx * 1.7;
+    r.style.left = (o.cx - w / 2) + "px"; r.style.top = (o.cy - o.ry * 0.55 - w / 2) + "px";
+    r.style.width = w + "px"; r.style.height = (w / 2) + "px";
+    layer.appendChild(r);
+    setTimeout(function () { if (r.parentNode) r.parentNode.removeChild(r); }, 6000);
+  }
   // 瓶子裡的小燈：每兌現一個獎勵就點一盞，沿著苔蘚後緣排開。光暈用漸層畫，不用濾鏡（iPhone 才畫得出來）
   function addLanterns(layer, o, owner, bx, by, hw, hh) {
     var done = owner ? claims.filter(function (c) { return c.owner === owner.id && c.status === "done"; }).sort(function (a, b) { return (a.done_ts || a.ts) - (b.done_ts || b.ts); }) : [];
@@ -906,6 +1007,7 @@
     var list = entries.filter(function (e) { return owner && e.owner === owner.id; })
       .concat(claims.filter(function (c) { return owner && c.owner === owner.id; }).map(function (c) { return Object.assign({ _claim: true, day: dateKey(new Date(c.ts)) }, c); }))
       .concat(checkins.filter(function (c) { return owner && c.user_id === owner.id; }).map(function (c) { return Object.assign({ _checkin: true }, c); }))
+      .concat(angers.filter(function (a) { return owner && a.from_id === owner.id; }).map(function (a) { return Object.assign({ _anger: true, day: dateKey(new Date(a.ts)) }, a); }))
       .sort(function (a, b) { return b.ts - a.ts; }).slice(0, 80);
     var log = el("ul", { class: "log" });
     if (!list.length) log.appendChild(el("li", {}, [el("span", { class: "when" }), el("span", { class: "what", text: "還沒有紀錄。" })]));
@@ -915,6 +1017,15 @@
         log.appendChild(el("li", { class: "checkin" }, [el("span", { class: "when", text: shortDate(e.day) }), el("div", { class: "what" }, [
           el("div", {}, [el("b", { text: "報平安 " + (e.mood || "") })]),
           e.note ? el("p", { class: "note", text: e.note }) : null
+        ])]));
+        return;
+      }
+      if (e._anger) {
+        var hs = coaxOf(e);
+        log.appendChild(el("li", { class: "anger" }, [el("span", { class: "when", text: shortDate(e.day) }), el("div", { class: "what" }, [
+          el("div", {}, [el("b", { text: (ANGER[e.level] || ANGER[2]).e + " " + (ANGER[e.level] || ANGER[2]).t }), el("span", { class: "tag" + (e.status === "angry" ? "" : " no"), text: e.status === "angry" ? "還在下雨" : "🌈 消氣了" })]),
+          e.reason ? el("p", { class: "note", text: e.reason }) : null,
+          hs.length ? el("p", { class: "reply", text: "被哄了 " + hs.length + " 次：" + hs.map(function (c) { return c.text; }).join("、") }) : null
         ])]));
         return;
       }
